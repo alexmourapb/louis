@@ -5,9 +5,14 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"os"
+	"github.com/gorilla/mux"
 )
 
 func main() {
+	router := mux.NewRouter();
+	router.HandleFunc("/", GetDashboard).Methods("GET")
+	router.HandleFunc("/upload", Upload).Methods("POST")
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Printf("INFO: .env file not found using real env variables")
