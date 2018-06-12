@@ -6,12 +6,14 @@ import (
 	"log"
 	"os"
 	"github.com/gorilla/mux"
+	"net/http"
 )
 
 func main() {
 	router := mux.NewRouter();
 	router.HandleFunc("/", GetDashboard).Methods("GET")
 	router.HandleFunc("/upload", Upload).Methods("POST")
+	log.Fatal(http.ListenAndServe(":8000", router))
 
 	err := godotenv.Load()
 	if err != nil {
