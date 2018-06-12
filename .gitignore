@@ -12,3 +12,5 @@
 *.out
 # configs for local development
 .env
+debug
+.vscode/*
