@@ -4,8 +4,11 @@ import (
 	"net/http"
 	"fmt"
 	"log"
-	"os"
 	"io"
+	"bytes"
+	"io/ioutil"
+	"time"
+	"strconv"
 )
 
 func GetDashboard(w http.ResponseWriter, r *http.Request) {
@@ -13,6 +16,7 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func Upload(w http.ResponseWriter, r *http.Request) {
+	var t = time.Now()
 	r.ParseMultipartForm(5 * 1024 * 1024)
 	file, handler, err := r.FormFile("file")
 	if err != nil {
@@ -22,11 +26,15 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 	fmt.Fprintf(w, "%v", handler.Header)
 	// TODO: change the following lines to work with S3 storage
-	f, err := os.OpenFile("/image/" + handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
+	var buffer bytes.Buffer
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	defer f.Close()
-	io.Copy(f, file)
+	io.Copy(&buffer, file)
+	err = ioutil.WriteFile("./docs/images/" + strconv.Itoa(int(t.Unix())) + ".jpg", buffer.Bytes(), 0644)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }
