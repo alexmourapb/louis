@@ -1,4 +1,4 @@
-package main
+package louis
 
 import (
 	// "fmt"
@@ -6,12 +6,13 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
+	"github.com/KazanExpress/Louis/internal/app/louis"
 )
 
 func main() {
 	router := mux.NewRouter()
-	router.HandleFunc("/", GetDashboard).Methods("GET")
-	router.HandleFunc("/upload", Upload).Methods("POST")
+	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
+	router.HandleFunc("/upload", louis.Upload).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8000", router))
 
 	err := godotenv.Load()
