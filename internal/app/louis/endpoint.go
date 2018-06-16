@@ -106,12 +106,12 @@ func authorizeByPublicKey(publicKey string) (error, int32) {
 	if publicKey == os.Getenv("LOUIS_PUBLIC_KEY") {
 		return nil, 1
 	}
-	return fmt.Errorf("Account not found"), -1
+	return fmt.Errorf("account not found"), -1
 }
 
 func authorizeBySecretKey(publicKey string) (error, int32) {
 	if publicKey == os.Getenv("LOUIS_SECRET_KEY") {
 		return nil, 1
 	}
-	return fmt.Errorf("Account not found"), -1
+	return fmt.Errorf("account not found"), -1
 }
