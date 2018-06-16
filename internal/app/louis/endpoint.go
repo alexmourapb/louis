@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"github.com/golang/go/src/pkg/io/ioutil"
 	"image/jpeg"
 	image2 "image"
 )
