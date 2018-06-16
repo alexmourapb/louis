@@ -2,6 +2,7 @@ package louis
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/joho/godotenv"
 	"io"
 	"mime/multipart"
@@ -40,6 +41,20 @@ func newFileUploadRequest(uri string, params map[string]string, paramName, path 
 	return req, err
 }
 
+func newClaimRequest(uri string, payload interface{}) (*http.Request, error) {
+	body := &bytes.Buffer{}
+
+	jsonResponse, merror := json.Marshal(payload)
+	if merror != nil {
+		return nil, merror
+	}
+	body.Write(jsonResponse)
+
+	req, err := http.NewRequest("POST", uri, body)
+	req.Header.Set("Content-Type", "application/json")
+	return req, err
+}
+
 func TestUploadAuthorization(test *testing.T) {
 
 	godotenv.Load("../../../.env")
@@ -53,6 +68,24 @@ func TestUploadAuthorization(test *testing.T) {
 	}
 	response := httptest.NewRecorder()
 	Upload(response, request)
+	if response.Code != http.StatusUnauthorized {
+		test.Fatalf("Response code was %v; want 401", response.Code)
+	}
+}
+
+func TestClaimAuthorization(test *testing.T) {
+	godotenv.Load("../../../.env")
+
+	path, _ := os.Getwd()
+	path = filepath.Join(path, "../../../test/data/picture.jpg")
+
+	request, err := newClaimRequest("http://localhost:8000/claim", nil)
+	if err != nil {
+		test.Fatalf("Failed to create request: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	Claim(response, request)
 	if response.Code != http.StatusUnauthorized {
 		test.Fatalf("Response code was %v; want 401", response.Code)
 	}
