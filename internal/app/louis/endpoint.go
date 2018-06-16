@@ -10,13 +10,18 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"github.com/golang/go/src/pkg/io/ioutil"
 )
 
 const MaxImageSize = 5 * 1024 * 1024
 
-type ImageKey struct {
+type ImageData struct {
 	Key string `json:"key"`
 	Url string `json:"url"`
+}
+
+type ImageKey struct {
+	Key string `json:"key"`
 }
 
 type ResponseTemplate struct {
@@ -50,16 +55,35 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 
 	io.Copy(&buffer, file)
 
-	var imageKey ImageKey
-	imageKey.Key = xid.New().String()
+	var imageData ImageData
+	imageData.Key = xid.New().String()
 
-	output, err := utils.UploadFile(bytes.NewReader(buffer.Bytes()), imageKey.Key+".jpg")
+	output, err := utils.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
 	if err != nil {
 		respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
 		return
 	}
-	imageKey.Url = output.Location
-	respondWithJson(w, "", imageKey, 200)
+	imageData.Url = output.Location
+	respondWithJson(w, "", imageData, 200)
+}
+
+func Claim(w http.ResponseWriter, r *http.Request) {
+	err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
+	if err != nil {
+		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
+		return
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+		return
+	}
+	var imageKey ImageKey
+	err = json.Unmarshal(body, &imageKey)
+	if err != nil {
+		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+	}
+	// here we should create transformations for image key
 }
 
 func respondWithJson(w http.ResponseWriter, err string, payload interface{}, code int) error {

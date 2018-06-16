@@ -18,6 +18,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
 	router.HandleFunc("/upload", louis.Upload).Methods("POST")
+	router.HandleFunc("/claim", louis.Claim).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8000", router))
 
 	// testS3()
