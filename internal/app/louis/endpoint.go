@@ -35,7 +35,7 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 func Upload(w http.ResponseWriter, r *http.Request) {
 
-	err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
+	err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
 	if err != nil {
 		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 		return
