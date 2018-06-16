@@ -7,6 +7,7 @@ import (
 	"github.com/KazanExpress/Louis/internal/pkg/utils"
 	"github.com/rs/xid"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,7 +16,7 @@ import (
 	image2 "image"
 )
 
-const MaxImageSize = 5 * 1024 * 1024
+const MaxImageSize = 5 * 1024 * 1024 // bytes
 
 type ImageData struct {
 	Key string `json:"key"`
