@@ -76,9 +76,6 @@ func TestUploadAuthorization(test *testing.T) {
 func TestClaimAuthorization(test *testing.T) {
 	godotenv.Load("../../../.env")
 
-	path, _ := os.Getwd()
-	path = filepath.Join(path, "../../../test/data/picture.jpg")
-
 	request, err := newClaimRequest("http://localhost:8000/claim", nil)
 	if err != nil {
 		test.Fatalf("Failed to create request: %v", err)
