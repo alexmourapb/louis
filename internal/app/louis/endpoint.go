@@ -7,13 +7,13 @@ import (
 	"github.com/KazanExpress/Louis/internal/pkg/utils"
 	"github.com/rs/xid"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"github.com/golang/go/src/pkg/io/ioutil"
 )
 
-const MaxImageSize = 5 * 1024 * 1024
+const MaxImageSize = 5 * 1024 * 1024 // bytes
 
 type ImageData struct {
 	Key string `json:"key"`
@@ -35,7 +35,7 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 func Upload(w http.ResponseWriter, r *http.Request) {
 
-	err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
+	err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
 	if err != nil {
 		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 		return
@@ -68,7 +68,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func Claim(w http.ResponseWriter, r *http.Request) {
-	err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
+	err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
 	if err != nil {
 		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 		return

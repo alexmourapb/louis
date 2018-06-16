@@ -1,14 +1,15 @@
 package louis
 
 import (
-	"testing"
-	"os"
 	"bytes"
-	"mime/multipart"
-	"path/filepath"
+	"github.com/joho/godotenv"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
 )
 
 func newFileUploadRequest(uri string, params map[string]string, paramName, path string) (*http.Request, error) {
@@ -39,15 +40,38 @@ func newFileUploadRequest(uri string, params map[string]string, paramName, path 
 	return req, err
 }
 
-func TestUpload(test *testing.T) {
+func TestUploadAuthorization(test *testing.T) {
+
+	godotenv.Load("../../../.env")
+
 	path, _ := os.Getwd()
-	path += "/test/data/picture.jpg"
+	path = filepath.Join(path, "../../../test/data/picture.jpg")
+
+	request, err := newFileUploadRequest("http://localhost:8000/upload", nil, "file", path)
+	if err != nil {
+		test.Fatalf("Error should be nil but %v", err)
+	}
+	response := httptest.NewRecorder()
+	Upload(response, request)
+	if response.Code != http.StatusUnauthorized {
+		test.Fatalf("Response code was %v; want 401", response.Code)
+	}
+}
+
+func TestUpload(test *testing.T) {
+	godotenv.Load("../../../.env")
+
+	path, _ := os.Getwd()
+	path = filepath.Join(path, "../../../test/data/picture.jpg")
 	request, err := newFileUploadRequest("http://localhost:8000/upload", nil, "file", path)
 	if err != nil {
 		test.Error("Error should not be nil")
 		return
 	}
-	response := httptest.NewRecorder();
+
+	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+
+	response := httptest.NewRecorder()
 	Upload(response, request)
 	if response.Code != http.StatusOK {
 		test.Errorf("Response code was %v; want 200", response.Code)
