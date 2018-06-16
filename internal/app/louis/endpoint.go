@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"github.com/KazanExpress/Louis/internal/pkg/utils"
 	"github.com/rs/xid"
+	"image/jpeg"
+	image2 "image"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"image/jpeg"
-	image2 "image"
 )
 
 const MaxImageSize = 5 * 1024 * 1024 // bytes
@@ -54,10 +54,17 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 
 	defer file.Close()
 	var buffer bytes.Buffer
-
 	io.Copy(&buffer, file)
-	image, _, _ := image2.Decode(bytes.NewReader(buffer.Bytes()))
-	err = jpeg.Encode(&buffer, image, &jpeg.Options{20})
+
+	image, _, err := image2.Decode(bytes.NewReader(buffer.Bytes()))
+	if err != nil {
+		log.Printf("ERROR: error on creating an Image object from bytes - %v", err)
+		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+		return
+	}
+
+	buffer = bytes.Buffer{}
+	err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: 20})
 	if err != nil {
 		log.Printf("ERROR: error on compressing an image - %v", err)
 		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
