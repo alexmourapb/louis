@@ -67,7 +67,7 @@ func TestUploadAuthorization(test *testing.T) {
 		test.Fatalf("Error should be nil but %v", err)
 	}
 	response := httptest.NewRecorder()
-	Upload(response, request)
+	UploadHandler(nil)(response, request)
 	if response.Code != http.StatusUnauthorized {
 		test.Fatalf("Response code was %v; want 401", response.Code)
 	}
@@ -102,7 +102,7 @@ func TestUpload(test *testing.T) {
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
 	response := httptest.NewRecorder()
-	Upload(response, request)
+	UploadHandler(nil)(response, request)
 	if response.Code != http.StatusOK {
 		test.Errorf("Response code was %v; want 200", response.Code)
 	}

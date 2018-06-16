@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/KazanExpress/Louis/internal/pkg/db"
 	"github.com/KazanExpress/Louis/internal/pkg/utils"
 	"github.com/rs/xid"
-	"image/jpeg"
 	image2 "image"
+	"image/jpeg"
 	"io"
 	"io/ioutil"
 	"log"
@@ -35,52 +36,54 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, here is your dashboard")
 }
 
-func Upload(w http.ResponseWriter, r *http.Request) {
+func UploadHandler(db *db.DB) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-	err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
-	if err != nil {
-		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
-		return
-	}
+		err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
+		if err != nil {
+			respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
+			return
+		}
 
-	r.ParseMultipartForm(MaxImageSize)
-	file, _, err := r.FormFile("file")
+		r.ParseMultipartForm(MaxImageSize)
+		file, _, err := r.FormFile("file")
 
-	if err != nil {
-		log.Printf("ERROR: error on reading file from multipart - %v", err)
-		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
-		return
-	}
+		if err != nil {
+			log.Printf("ERROR: error on reading file from multipart - %v", err)
+			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			return
+		}
 
-	defer file.Close()
-	var buffer bytes.Buffer
-	io.Copy(&buffer, file)
+		defer file.Close()
+		var buffer bytes.Buffer
+		io.Copy(&buffer, file)
 
-	image, _, err := image2.Decode(bytes.NewReader(buffer.Bytes()))
-	if err != nil {
-		log.Printf("ERROR: error on creating an Image object from bytes - %v", err)
-		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
-		return
-	}
+		image, _, err := image2.Decode(bytes.NewReader(buffer.Bytes()))
+		if err != nil {
+			log.Printf("ERROR: error on creating an Image object from bytes - %v", err)
+			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			return
+		}
 
-	buffer = bytes.Buffer{}
-	err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: 20})
-	if err != nil {
-		log.Printf("ERROR: error on compressing an image - %v", err)
-		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
-		return
-	}
+		buffer = bytes.Buffer{}
+		err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: 20})
+		if err != nil {
+			log.Printf("ERROR: error on compressing an image - %v", err)
+			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			return
+		}
 
-	var imageData ImageData
-	imageData.Key = xid.New().String()
+		var imageData ImageData
+		imageData.Key = xid.New().String()
 
-	output, err := utils.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
-	if err != nil {
-		respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
-		return
-	}
-	imageData.Url = output.Location
-	respondWithJson(w, "", imageData, 200)
+		output, err := utils.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
+		if err != nil {
+			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
+			return
+		}
+		imageData.Url = output.Location
+		respondWithJson(w, "", imageData, 200)
+	})
 }
 
 func Claim(w http.ResponseWriter, r *http.Request) {
