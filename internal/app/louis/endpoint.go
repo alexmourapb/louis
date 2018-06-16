@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"github.com/golang/go/src/pkg/io/ioutil"
+	"image/jpeg"
+	image2 "image"
 )
 
 const MaxImageSize = 5 * 1024 * 1024
@@ -35,7 +37,7 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 func Upload(w http.ResponseWriter, r *http.Request) {
 
-	err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
+	err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
 	if err != nil {
 		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 		return
@@ -54,6 +56,13 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 	var buffer bytes.Buffer
 
 	io.Copy(&buffer, file)
+	image, _, _ := image2.Decode(bytes.NewReader(buffer.Bytes()))
+	err = jpeg.Encode(&buffer, image, &jpeg.Options{20})
+	if err != nil {
+		log.Printf("ERROR: error on compressing an image - %v", err)
+		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+		return
+	}
 
 	var imageData ImageData
 	imageData.Key = xid.New().String()
@@ -68,7 +77,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func Claim(w http.ResponseWriter, r *http.Request) {
-	err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
+	err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
 	if err != nil {
 		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 		return
