@@ -86,23 +86,26 @@ func UploadHandler(db *db.DB) http.HandlerFunc {
 	})
 }
 
-func Claim(w http.ResponseWriter, r *http.Request) {
-	err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
-	if err != nil {
-		respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
-		return
-	}
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
-		return
-	}
-	var imageKey ImageKey
-	err = json.Unmarshal(body, &imageKey)
-	if err != nil {
-		respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
-	}
-	// here we should create transformations for image key
+func ClaimHandler(db *db.DB) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
+		if err != nil {
+			respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
+			return
+		}
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			return
+		}
+		var imageKey ImageKey
+		err = json.Unmarshal(body, &imageKey)
+		if err != nil {
+			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+		}
+		// here we should create transformations for image key
+
+	})
 }
 
 func respondWithJson(w http.ResponseWriter, err string, payload interface{}, code int) error {
