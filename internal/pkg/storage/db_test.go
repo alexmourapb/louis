@@ -22,7 +22,6 @@ func TestInitDB(t *testing.T) {
 	failIfError(err, "failed to open db")
 
 	failIfError(db.InitDB(), "failed to create initial tables")
-
 }
 
 func TestCreateImage(t *testing.T) {
