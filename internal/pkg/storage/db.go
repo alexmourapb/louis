@@ -1,8 +1,9 @@
-package db
+package storage
 
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	//"github.com/mattn/go-sqlite3"
 	"time"
 )
@@ -33,21 +34,80 @@ func (db *DB) Begin() (*Tx, error) {
 	return &Tx{tx}, nil
 }
 
+func (db *DB) InitDB() error {
+
+	_, err := db.Exec(`
+	CREATE TABLE IF NOT EXISTS Users
+		(ID INTEGER PRIMARY KEY,
+		 PublicKey VARCHAR(100),
+		 SecretKey VARCHAR(100))`)
+
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS images
+		(ID INTEGER PRIMARY KEY,
+		 Key VARCHAR(20),
+		 UserID INTEGER,
+		 URL VARCHAR(50),
+		 Approved BOOLEAN,
+		 TransformsUploaded BOOLEAN,
+		 CreateDate DATETIME,
+		 ApproveDate DATETIME,
+		 TransformsUploadDate DATETIME,
+
+		 FOREIGN KEY(UserID) REFERENCES Users(ID))`)
+	return err
+}
+
 // CreateImage creates a new image.
-// Returns an error if
-// func (tx *Tx) CreateImage(u *User) error {
-// 	// Validate the input.
-// 	if u == nil {
-// 		return errors.New("user required")
-// 	} else if u.Name == "" {
-// 		return errors.New("name required")
-// 	}
+// Returns id of newly created image and an error if some shit happened
+func (tx *Tx) CreateImage(key string, userID int32) (int64, error) {
 
-// 	// Perform the actual insert and return any errors.
-// 	return tx.Exec(`INSERT INTO users (...) VALUES`)
-// }
+	stmt, err := tx.Prepare(`
+		INSERT INTO images(Key, UserID, CreateDate)
+			VALUES (?, ?, DATETIME('now', 'localtime') )`)
 
-func main() {
+	if err != nil {
+		return 0, err
+	}
+	res, err := stmt.Exec(key, userID)
+	if err != nil {
+		return -1, err
+	}
+	return res.LastInsertId()
+}
+
+func (tx *Tx) ClaimImage(key string, userID int32) error {
+	stmt, err := tx.Prepare(`
+		UPDATE Images
+		SET Approved=true,
+			ApproveDate=DATETIME('now', 'localtime')
+		WHERE Key=? AND UserID=?`)
+
+	if err != nil {
+		return err
+	}
+
+	res, err := stmt.Exec(key, userID)
+
+	if err != nil {
+		return err
+	}
+	if ra, er := res.RowsAffected(); er == nil {
+		return er
+	} else if ra != 1 {
+		log.Printf("ERROR: failed to update image: 1 row should be updated but updated %v", ra)
+		if err = tx.Rollback(); err != nil {
+			return err
+		}
+		return fmt.Errorf("failed to update image: 1 row should be updated but updated %v", ra)
+	}
+	return nil
+}
+
+func maqin() {
 	db, err := sql.Open("sqlite3", "./foo.db")
 	checkErr(err)
 

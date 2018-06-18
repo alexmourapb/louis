@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/KazanExpress/Louis/internal/pkg/db"
+	"github.com/KazanExpress/Louis/internal/pkg/storage"
 	"github.com/KazanExpress/Louis/internal/pkg/utils"
 	"github.com/rs/xid"
 	image2 "image"
@@ -36,10 +36,10 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, here is your dashboard")
 }
 
-func UploadHandler(db *db.DB) http.HandlerFunc {
+func UploadHandler(db *storage.DB) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		err, _ := authorizeByPublicKey(r.Header.Get("Authorization"))
+		err, userID := authorizeByPublicKey(r.Header.Get("Authorization"))
 		if err != nil {
 			respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 			return
@@ -76,17 +76,27 @@ func UploadHandler(db *db.DB) http.HandlerFunc {
 		var imageData ImageData
 		imageData.Key = xid.New().String()
 
+		tx, err := db.Begin()
+		if err != nil {
+			log.Printf("ERROR: error on creating transaction - %v", err)
+			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
+			return
+		}
+
+		tx.CreateImage(imageData.Key, userID)
+
 		output, err := utils.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
 		if err != nil {
 			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
 			return
 		}
+		// tx.SetImageUrl(imageData.Key, output.Location)
 		imageData.Url = output.Location
 		respondWithJson(w, "", imageData, 200)
 	})
 }
 
-func ClaimHandler(db *db.DB) http.HandlerFunc {
+func ClaimHandler(db *storage.DB) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
 		if err != nil {

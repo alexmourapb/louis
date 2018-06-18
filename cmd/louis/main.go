@@ -1,12 +1,13 @@
 package main
 
 import (
+	"github.com/KazanExpress/Louis/internal/app/louis"
+	"github.com/KazanExpress/Louis/internal/pkg/storage"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"net/http"
-	"github.com/KazanExpress/Louis/internal/app/louis"
-	"github.com/KazanExpress/Louis/internal/pkg/db"
-	"github.com/joho/godotenv"
 	"os"
 )
 
@@ -16,7 +17,7 @@ func main() {
 		log.Printf("INFO: .env file not found using real env variables")
 	}
 
-	database, err := db.Open(os.Getenv("DATA_SOURCE_NAME"))
+	database, err := storage.Open(os.Getenv("DATA_SOURCE_NAME"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,7 +25,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
 	router.Handle("/upload", louis.UploadHandler(database)).Methods("POST")
-	router.HandleFunc("/claim", louis.Claim).Methods("POST")
+	router.HandleFunc("/claim", louis.ClaimHandler(database)).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8000", router))
 
 	// testS3()

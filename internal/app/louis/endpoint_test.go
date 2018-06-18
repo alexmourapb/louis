@@ -3,9 +3,13 @@ package louis
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/KazanExpress/Louis/internal/pkg/storage"
 	"github.com/joho/godotenv"
+	_ "github.com/mattn/go-sqlite3"
 	"io"
+	"log"
 	"mime/multipart"
+
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -55,6 +59,14 @@ func newClaimRequest(uri string, payload interface{}) (*http.Request, error) {
 	return req, err
 }
 
+var pathToTestDB = "../../../test/data/test.db"
+
+func failIfError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s - %v", msg, err)
+	}
+}
+
 func TestUploadAuthorization(test *testing.T) {
 
 	godotenv.Load("../../../.env")
@@ -67,7 +79,17 @@ func TestUploadAuthorization(test *testing.T) {
 		test.Fatalf("Error should be nil but %v", err)
 	}
 	response := httptest.NewRecorder()
-	UploadHandler(nil)(response, request)
+
+	db, err := storage.Open(pathToTestDB)
+
+	failIfError(err, "failed to open db")
+	defer os.Remove(pathToTestDB)
+	defer os.Remove(pathToTestDB + "-journal")
+	defer db.Close()
+
+	failIfError(db.InitDB(), "failed to create initial tables")
+
+	UploadHandler(db)(response, request)
 	if response.Code != http.StatusUnauthorized {
 		test.Fatalf("Response code was %v; want 401", response.Code)
 	}
@@ -81,8 +103,18 @@ func TestClaimAuthorization(test *testing.T) {
 		test.Fatalf("Failed to create request: %v", err)
 	}
 
+	db, err := storage.Open(pathToTestDB)
+
+	failIfError(err, "failed to open db")
+	defer os.Remove(pathToTestDB)
+	defer os.Remove(pathToTestDB + "-journal")
+
+	defer db.Close()
+
+	failIfError(db.InitDB(), "failed to create initial tables")
+
 	response := httptest.NewRecorder()
-	Claim(response, request)
+	ClaimHandler(db)(response, request)
 	if response.Code != http.StatusUnauthorized {
 		test.Fatalf("Response code was %v; want 401", response.Code)
 	}
@@ -101,8 +133,18 @@ func TestUpload(test *testing.T) {
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
+	db, err := storage.Open(pathToTestDB)
+
+	failIfError(err, "failed to open db")
+	defer os.Remove(pathToTestDB)
+	defer os.Remove(pathToTestDB + "-journal")
+
+	defer db.Close()
+
+	failIfError(db.InitDB(), "failed to create initial tables")
+
 	response := httptest.NewRecorder()
-	UploadHandler(nil)(response, request)
+	UploadHandler(db)(response, request)
 	if response.Code != http.StatusOK {
 		test.Errorf("Response code was %v; want 200", response.Code)
 	}
