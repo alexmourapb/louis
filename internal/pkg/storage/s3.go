@@ -1,11 +1,11 @@
-package utils
+package storage
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"os"
 	"io"
+	"os"
 )
 
 // UploadFile - uploads the file with objectKey key

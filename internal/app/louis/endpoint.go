@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/KazanExpress/Louis/internal/pkg/storage"
-	"github.com/KazanExpress/Louis/internal/pkg/utils"
 	"github.com/rs/xid"
 	image2 "image"
 	"image/jpeg"
@@ -85,7 +84,7 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 
 		tx.CreateImage(imageData.Key, userID)
 
-		output, err := utils.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
+		output, err := storage.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
 		if err != nil {
 			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
 			return
