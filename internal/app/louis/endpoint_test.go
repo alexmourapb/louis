@@ -61,7 +61,7 @@ func newClaimRequest(uri string, payload interface{}) (*http.Request, error) {
 
 var pathToTestDB = "../../../test/data/test.db"
 
-func failIfError(err error, msg string) {
+func failIfError(t *testing.T, err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s - %v", msg, err)
 	}
@@ -82,12 +82,12 @@ func TestUploadAuthorization(test *testing.T) {
 
 	db, err := storage.Open(pathToTestDB)
 
-	failIfError(err, "failed to open db")
+	failIfError(test, err, "failed to open db")
 	defer os.Remove(pathToTestDB)
 	defer os.Remove(pathToTestDB + "-journal")
 	defer db.Close()
 
-	failIfError(db.InitDB(), "failed to create initial tables")
+	failIfError(test, db.InitDB(), "failed to create initial tables")
 
 	UploadHandler(db)(response, request)
 	if response.Code != http.StatusUnauthorized {
@@ -105,13 +105,13 @@ func TestClaimAuthorization(test *testing.T) {
 
 	db, err := storage.Open(pathToTestDB)
 
-	failIfError(err, "failed to open db")
+	failIfError(test, err, "failed to open db")
 	defer os.Remove(pathToTestDB)
 	defer os.Remove(pathToTestDB + "-journal")
 
 	defer db.Close()
 
-	failIfError(db.InitDB(), "failed to create initial tables")
+	failIfError(test, db.InitDB(), "failed to create initial tables")
 
 	response := httptest.NewRecorder()
 	ClaimHandler(db)(response, request)
@@ -135,13 +135,13 @@ func TestUpload(test *testing.T) {
 
 	db, err := storage.Open(pathToTestDB)
 
-	failIfError(err, "failed to open db")
+	failIfError(test, err, "failed to open db")
 	defer os.Remove(pathToTestDB)
 	defer os.Remove(pathToTestDB + "-journal")
 
 	defer db.Close()
 
-	failIfError(db.InitDB(), "failed to create initial tables")
+	failIfError(test, db.InitDB(), "failed to create initial tables")
 
 	response := httptest.NewRecorder()
 	UploadHandler(db)(response, request)

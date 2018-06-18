@@ -95,7 +95,7 @@ func (tx *Tx) ClaimImage(key string, userID int32) error {
 	if err != nil {
 		return err
 	}
-	if ra, er := res.RowsAffected(); er == nil {
+	if ra, er := res.RowsAffected(); er != nil {
 		return er
 	} else if ra != 1 {
 		log.Printf("ERROR: failed to update image: 1 row should be updated but updated %v", ra)

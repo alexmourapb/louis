@@ -2,16 +2,15 @@ package storage
 
 import (
 	_ "github.com/mattn/go-sqlite3"
-	"log"
 	"os"
 	"testing"
 )
 
 var pathToTestDB = "../../../test/data/test.db"
 
-func failIfError(err error, msg string) {
+func failIfError(t *testing.T, err error, msg string) {
 	if err != nil {
-		log.Fatalf("%s - %v", msg, err)
+		t.Fatalf("%s - %v", msg, err)
 	}
 }
 func TestInitDB(t *testing.T) {
@@ -19,9 +18,9 @@ func TestInitDB(t *testing.T) {
 	defer os.Remove(pathToTestDB)
 	defer db.Close()
 
-	failIfError(err, "failed to open db")
+	failIfError(t, err, "failed to open db")
 
-	failIfError(db.InitDB(), "failed to create initial tables")
+	failIfError(t, db.InitDB(), "failed to create initial tables")
 }
 
 func TestCreateImage(t *testing.T) {
@@ -30,26 +29,26 @@ func TestCreateImage(t *testing.T) {
 	defer os.Remove(pathToTestDB + "-journal")
 	defer db.Close()
 
-	failIfError(err, "failed to open db")
+	failIfError(t, err, "failed to open db")
 
 	err = db.InitDB()
-	failIfError(err, "failed to create tables")
+	failIfError(t, err, "failed to create tables")
 
 	tx, err := db.Begin()
-	failIfError(err, "failed to create transaction")
+	failIfError(t, err, "failed to create transaction")
 
 	id, err := tx.CreateImage("test_image_key", 1)
-	failIfError(err, "failed to create image")
+	failIfError(t, err, "failed to create image")
 
 	err = tx.Commit()
-	failIfError(err, "failed to create image")
+	failIfError(t, err, "failed to create image")
 
 	if id != 1 {
-		log.Fatalf("expected 1 but get %v", id)
+		t.Fatalf("expected 1 but get %v", id)
 	}
 
 	rows, err := db.Query("SELECT ID, UserID, Key FROM Images WHERE key='test_image_key'")
-	failIfError(err, "failed to find created row")
+	failIfError(t, err, "failed to find created row")
 
 	var (
 		rowID  int
@@ -57,19 +56,19 @@ func TestCreateImage(t *testing.T) {
 		key    string
 	)
 	if rows.Next() {
-		failIfError(rows.Scan(&rowID, &userID, &key), "failed to read rowID, userID, key")
+		failIfError(t, rows.Scan(&rowID, &userID, &key), "failed to read rowID, userID, key")
 	} else {
-		log.Fatalf("image not saved")
+		t.Fatalf("image not saved")
 	}
 	if rowID != 1 {
-		log.Fatalf("expected image id 1 bug get %v", rowID)
+		t.Fatalf("expected image id 1 bug get %v", rowID)
 	}
 	if key != "test_image_key" {
-		log.Fatalf("expected image key 'test_image_key' bug get %v", key)
+		t.Fatalf("expected image key 'test_image_key' bug get %v", key)
 	}
 
 	if userID != 1 {
-		log.Fatalf("expected userID = 1 but get %v", userID)
+		t.Fatalf("expected userID = 1 but get %v", userID)
 	}
 }
 
@@ -79,13 +78,12 @@ func TestClaimImage(t *testing.T) {
 	defer os.Remove(pathToTestDB + "-journal")
 	defer db.Close()
 
-	failIfError(err, "failed to open db")
+	failIfError(t, err, "failed to open db")
 
-	err = db.InitDB()
-	failIfError(err, "failed to create tables")
+	failIfError(t, db.InitDB(), "failed to create tables")
 
 	tx, err := db.Begin()
-	failIfError(err, "failed to create createImage transaction")
+	failIfError(t, err, "failed to create createImage transaction")
 
 	var (
 		imageKey = "imageKey"
@@ -93,28 +91,28 @@ func TestClaimImage(t *testing.T) {
 	)
 	_, err = tx.CreateImage(imageKey, userID)
 
-	failIfError(err, "failed to create image")
+	failIfError(t, err, "failed to create image")
 
-	failIfError(tx.Commit(), "failed to commit create image transaction")
+	failIfError(t, tx.Commit(), "failed to commit create image transaction")
 
 	tx, err = db.Begin()
-	failIfError(err, "failed to create claim transaction")
+	failIfError(t, err, "failed to create claim transaction")
 
-	failIfError(tx.ClaimImage(imageKey, userID), "failed to claim image")
+	failIfError(t, tx.ClaimImage(imageKey, userID), "failed to claim image")
 
-	failIfError(tx.Commit(), "failed to commit claim image transaction")
+	failIfError(t, tx.Commit(), "failed to commit claim image transaction")
 
 	rows, err := db.Query("SELECT Approved FROM Images WHERE key=?", imageKey)
 
 	var approved bool
 
 	if rows.Next() {
-		failIfError(rows.Scan(&approved), "failed to scan approved column")
+		failIfError(t, rows.Scan(&approved), "failed to scan approved column")
 	} else {
-		log.Fatalf("image with key %s not found", imageKey)
+		t.Fatalf("image with key %s not found", imageKey)
 	}
 
 	if !approved {
-		log.Fatalf("expected approved = true but get %v", approved)
+		t.Fatalf("expected approved = true but get %v", approved)
 	}
 }
