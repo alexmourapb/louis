@@ -15,7 +15,10 @@ import (
 	"os"
 )
 
-const MaxImageSize = 5 * 1024 * 1024 // bytes
+const (
+	MaxImageSize       = 5 * 1024 * 1024 // bytes
+	CompressionQuality = 20
+)
 
 type ImageData struct {
 	Key string `json:"key"`
@@ -35,6 +38,17 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, here is your dashboard")
 }
 
+func failOnError(w http.ResponseWriter, err error, logMessage string, code int) (failed bool) {
+	if err != nil {
+		if logMessage != "" {
+			log.Printf("ERROR: %s - %v", logMessage, err)
+		}
+		respondWithJson(w, err.Error(), nil, code)
+		return true
+	}
+	return false
+}
+
 func UploadHandler(db *storage.DB) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -47,9 +61,7 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 		r.ParseMultipartForm(MaxImageSize)
 		file, _, err := r.FormFile("file")
 
-		if err != nil {
-			log.Printf("ERROR: error on reading file from multipart - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+		if failOnError(w, err, "error on reading file from multipart", http.StatusBadRequest) {
 			return
 		}
 
@@ -58,17 +70,13 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 		io.Copy(&buffer, file)
 
 		image, _, err := image2.Decode(bytes.NewReader(buffer.Bytes()))
-		if err != nil {
-			log.Printf("ERROR: error on creating an Image object from bytes - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+		if failOnError(w, err, "error on creating an Image object from bytes", http.StatusBadRequest) {
 			return
 		}
 
 		buffer = bytes.Buffer{}
-		err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: 20})
-		if err != nil {
-			log.Printf("ERROR: error on compressing an image - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+		err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: CompressionQuality})
+		if failOnError(w, err, "error on compressing an image", http.StatusBadRequest) {
 			return
 		}
 
@@ -76,20 +84,37 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 		imageData.Key = xid.New().String()
 
 		tx, err := db.Begin()
-		if err != nil {
-			log.Printf("ERROR: error on creating transaction - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
+		if failOnError(w, err, "error on creating transaction", http.StatusInternalServerError) {
 			return
 		}
 
-		tx.CreateImage(imageData.Key, userID)
+		_, err = tx.CreateImage(imageData.Key, userID)
+		if failOnError(w, err, "error on executing transaction", http.StatusInternalServerError) {
+			return
+		}
+
+		if failOnError(w, tx.Commit(), "error on commiting create image transaction", http.StatusInternalServerError) {
+			return
+		}
 
 		output, err := storage.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
-		if err != nil {
-			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
+		if failOnError(w, err, "failed to upload compressed image", http.StatusInternalServerError) {
 			return
 		}
-		// tx.SetImageUrl(imageData.Key, output.Location)
+
+		tx, err = db.Begin()
+		if failOnError(w, err, "error on creating transaction", http.StatusInternalServerError) {
+			return
+		}
+
+		if failOnError(w, tx.SetImageURL(imageData.Key, userID, output.Location), "error on executing transaction", http.StatusInternalServerError) {
+			return
+		}
+
+		if failOnError(w, tx.Commit(), "error on commiting set image URL transaction", http.StatusInternalServerError) {
+			return
+		}
+
 		imageData.Url = output.Location
 		respondWithJson(w, "", imageData, 200)
 	})

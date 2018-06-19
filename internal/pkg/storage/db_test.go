@@ -48,6 +48,8 @@ func TestCreateImage(t *testing.T) {
 	}
 
 	rows, err := db.Query("SELECT ID, UserID, Key FROM Images WHERE key='test_image_key'")
+	defer rows.Close()
+
 	failIfError(t, err, "failed to find created row")
 
 	var (
@@ -103,6 +105,7 @@ func TestClaimImage(t *testing.T) {
 	failIfError(t, tx.Commit(), "failed to commit claim image transaction")
 
 	rows, err := db.Query("SELECT Approved FROM Images WHERE key=?", imageKey)
+	defer rows.Close()
 
 	var approved bool
 
@@ -149,6 +152,7 @@ func TestSetImageURL(t *testing.T) {
 	failIfError(t, tx.Commit(), "failed to commit set image url tx")
 
 	rows, err := db.Query("SELECT URL FROM Images WHERE key=?", imageKey)
+	defer rows.Close()
 
 	var URL string
 
@@ -161,4 +165,5 @@ func TestSetImageURL(t *testing.T) {
 	if URL != imageURL {
 		t.Fatalf("expected URL = true but get %v", URL)
 	}
+
 }

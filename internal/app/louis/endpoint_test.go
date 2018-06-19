@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"strings"
 
 	"net/http"
 	"net/http/httptest"
@@ -146,6 +147,37 @@ func TestUpload(test *testing.T) {
 	response := httptest.NewRecorder()
 	UploadHandler(db)(response, request)
 	if response.Code != http.StatusOK {
-		test.Errorf("Response code was %v; want 200", response.Code)
+		test.Fatalf("Response code was %v; want 200", response.Code)
+	}
+
+	var resp ResponseTemplate
+	failIfError(test, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
+
+	if resp.Error != "" {
+		test.Fatalf("expected response error to be empty but get - %s", resp.Error)
+	}
+
+	var payload = resp.Payload.(map[string]interface{})
+
+	url := payload["url"].(string)
+	imageKey := payload["key"].(string)
+
+	if !strings.HasPrefix(url, "http") || !strings.HasSuffix(url, ".jpg") {
+		test.Fatalf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
+	}
+
+	rows, err := db.Query("SELECT URL FROM Images WHERE key=?", imageKey)
+	defer rows.Close()
+
+	var URL string
+
+	if rows.Next() {
+		failIfError(test, rows.Scan(&URL), "failed to scan URL column")
+	} else {
+		test.Fatalf("image with key %s not found", imageKey)
+	}
+
+	if URL != url {
+		test.Fatalf("expected URL = true but get %v", URL)
 	}
 }
