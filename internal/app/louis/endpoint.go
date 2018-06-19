@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	MaxImageSize       = 5 * 1024 * 1024 // bytes
-	CompressionQuality = 20
+	MaxImageSize           = 5 * 1024 * 1024 // bytes
+	HighCompressionQuality = 20
+	LowCompressionQuality = 3
 )
 
 type ImageData struct {
@@ -75,7 +76,7 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 		}
 
 		buffer = bytes.Buffer{}
-		err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: CompressionQuality})
+		err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: HighCompressionQuality})
 		if failOnError(w, err, "error on compressing an image", http.StatusBadRequest) {
 			return
 		}
@@ -129,17 +130,78 @@ func ClaimHandler(db *storage.DB) http.HandlerFunc {
 		}
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
+			log.Printf("ERROR: error on reading request body - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
 		var imageKey ImageKey
 		err = json.Unmarshal(body, &imageKey)
 		if err != nil {
+			log.Printf("ERROR: error on object deserialization - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			return
 		}
 		// here we should create transformations for image key
+		// finding an image from S3
+		var buffer = bytes.Buffer{}
+		err = downloadFile(os.Getenv("S3_BUCKET_ENDPOINT") + imageKey.Key + ".jpg", &buffer)
+		if err != nil {
+			log.Printf("ERROR: error on downloading image with key '" + imageKey.Key + "' - %v", err)
+			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			return
+		}
 
+		imageHigh, err := jpeg.Decode(bytes.NewReader(buffer.Bytes()))
+		if err != nil {
+			log.Printf("ERROR: error on decoding an image with original resolution in claim method - %v", err)
+			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
+			return
+		}
+
+		var lowBuffer bytes.Buffer
+		err = jpeg.Encode(&lowBuffer, imageHigh, &jpeg.Options{Quality: LowCompressionQuality})
+		if err != nil {
+			log.Printf("ERROR: error on compressing an image in claim method - %v", err)
+			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			return
+		}
+
+		//imageLow, err := jpeg.Decode(bytes.NewReader(buffer.Bytes()))
+		//if err != nil {
+		//	log.Printf("ERROR: error on decoding an image with low resolution in clain method - %v", err)
+		//	respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
+		//	return
+		//}
+
+		lowImageKey := imageKey.Key + "_low"
+
+		// TODO: Remove the following testing of how low image is saved to S3
+		output, err := storage.UploadFile(bytes.NewReader(lowBuffer.Bytes()), lowImageKey + ".jpg")
+		if failOnError(w, err, "failed to upload compressed image with low quality", http.StatusInternalServerError) {
+			return
+		}
+
+		var imageData ImageData
+		imageData.Key = lowImageKey
+		imageData.Url = output.Location
+		respondWithJson(w, "", imageData, 200)
 	})
+}
+
+func downloadFile(url string, w io.Writer) error {
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func respondWithJson(w http.ResponseWriter, err string, payload interface{}, code int) error {
