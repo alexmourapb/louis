@@ -79,18 +79,14 @@ func (tx *Tx) CreateImage(key string, userID int32) (int64, error) {
 	return res.LastInsertId()
 }
 
-func (tx *Tx) ClaimImage(key string, userID int32) error {
-	stmt, err := tx.Prepare(`
-		UPDATE Images
-		SET Approved=true,
-			ApproveDate=DATETIME('now', 'localtime')
-		WHERE Key=? AND UserID=?`)
+func (tx *Tx) updateImage(query string, args ...interface{}) error {
+	stmt, err := tx.Prepare(query)
 
 	if err != nil {
 		return err
 	}
 
-	res, err := stmt.Exec(key, userID)
+	res, err := stmt.Exec(args...)
 
 	if err != nil {
 		return err
@@ -105,6 +101,22 @@ func (tx *Tx) ClaimImage(key string, userID int32) error {
 		return fmt.Errorf("failed to update image: 1 row should be updated but updated %v", ra)
 	}
 	return nil
+}
+
+func (tx *Tx) ClaimImage(key string, userID int32) error {
+	return tx.updateImage(`
+		UPDATE Images
+		SET Approved=true,
+			ApproveDate=DATETIME('now', 'localtime')
+		WHERE Key=? AND UserID=?`, key, userID)
+}
+
+func (tx *Tx) SetImageURL(key string, userID int32, URL string) error {
+	return tx.updateImage(`
+		UPDATE Images
+		SET URL=?
+		WHERE Key=? AND UserID=?`, URL, key, userID)
+
 }
 
 func maqin() {

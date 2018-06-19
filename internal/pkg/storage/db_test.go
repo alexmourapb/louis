@@ -116,3 +116,49 @@ func TestClaimImage(t *testing.T) {
 		t.Fatalf("expected approved = true but get %v", approved)
 	}
 }
+
+func TestSetImageURL(t *testing.T) {
+
+	var db, err = Open(pathToTestDB)
+	defer os.Remove(pathToTestDB)
+	defer os.Remove(pathToTestDB + "-journal")
+	defer db.Close()
+
+	failIfError(t, err, "failed to open db")
+
+	failIfError(t, db.InitDB(), "failed to create tables")
+
+	tx, err := db.Begin()
+	failIfError(t, err, "failed to create createImage transaction")
+
+	var (
+		imageKey = "imageKey"
+		userID   = int32(2)
+		imageURL = "https://test.hb.mcs.ru/test.jpg"
+	)
+	_, err = tx.CreateImage(imageKey, userID)
+
+	failIfError(t, err, "failed to create image")
+
+	failIfError(t, tx.Commit(), "failed to commit create image tx")
+
+	tx, err = db.Begin()
+
+	failIfError(t, tx.SetImageURL(imageKey, userID, imageURL), "failed to set image url")
+
+	failIfError(t, tx.Commit(), "failed to commit set image url tx")
+
+	rows, err := db.Query("SELECT URL FROM Images WHERE key=?", imageKey)
+
+	var URL string
+
+	if rows.Next() {
+		failIfError(t, rows.Scan(&URL), "failed to scan URL column")
+	} else {
+		t.Fatalf("image with key %s not found", imageKey)
+	}
+
+	if URL != imageURL {
+		t.Fatalf("expected URL = true but get %v", URL)
+	}
+}
