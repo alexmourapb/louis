@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/KazanExpress/Louis/internal/app/louis"
 	"github.com/KazanExpress/Louis/internal/pkg/storage"
 	"github.com/gorilla/mux"
@@ -18,6 +19,15 @@ func main() {
 	}
 
 	database, err := storage.Open(os.Getenv("DATA_SOURCE_NAME"))
+	initdb := flag.Bool("initdb", false, "if true then non-existing database tables will be created")
+	flag.Parse()
+
+	if *initdb {
+		if err = database.InitDB(); err != nil {
+			log.Fatalf("ERROR: failed to init db - %v", err)
+		}
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
