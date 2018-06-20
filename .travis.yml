@@ -1,4 +1,7 @@
 language: go
 sudo: enabled
+before_script:
+  - touch test/data/test.db
+  - chmod 777 test/data/test.db
 go:
   - "1.10.x"
