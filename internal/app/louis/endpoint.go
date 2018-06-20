@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"github.com/KazanExpress/Louis/internal/pkg/storage"
 	"github.com/rs/xid"
-	image2 "image"
 	"image/jpeg"
+	_ "image/png"
+	"image"
 	"io"
 	"io/ioutil"
 	"log"
@@ -17,8 +18,8 @@ import (
 
 const (
 	MaxImageSize           = 5 * 1024 * 1024 // bytes
-	HighCompressionQuality = 20
-	LowCompressionQuality = 3
+	HighCompressionQuality = 30
+	LowCompressionQuality  = 15
 )
 
 type ImageData struct {
@@ -70,14 +71,14 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 		var buffer bytes.Buffer
 		io.Copy(&buffer, file)
 
-		image, _, err := image2.Decode(bytes.NewReader(buffer.Bytes()))
+		img, _, err := image.Decode(bytes.NewReader(buffer.Bytes()))
 		if failOnError(w, err, "error on creating an Image object from bytes", http.StatusBadRequest) {
 			return
 		}
 
 		buffer = bytes.Buffer{}
-		err = jpeg.Encode(&buffer, image, &jpeg.Options{Quality: HighCompressionQuality})
-		if failOnError(w, err, "error on compressing an image", http.StatusBadRequest) {
+		err = jpeg.Encode(&buffer, img, &jpeg.Options{Quality: HighCompressionQuality})
+		if failOnError(w, err, "error on compressing an img", http.StatusBadRequest) {
 			return
 		}
 
@@ -94,12 +95,12 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		if failOnError(w, tx.Commit(), "error on commiting create image transaction", http.StatusInternalServerError) {
+		if failOnError(w, tx.Commit(), "error on committing create img transaction", http.StatusInternalServerError) {
 			return
 		}
 
 		output, err := storage.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
-		if failOnError(w, err, "failed to upload compressed image", http.StatusInternalServerError) {
+		if failOnError(w, err, "failed to upload compressed img", http.StatusInternalServerError) {
 			return
 		}
 
@@ -112,7 +113,7 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		if failOnError(w, tx.Commit(), "error on commiting set image URL transaction", http.StatusInternalServerError) {
+		if failOnError(w, tx.Commit(), "error on committing set img URL transaction", http.StatusInternalServerError) {
 			return
 		}
 
@@ -128,12 +129,14 @@ func ClaimHandler(db *storage.DB) http.HandlerFunc {
 			respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 			return
 		}
+
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("ERROR: error on reading request body - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
+
 		var imageKey ImageKey
 		err = json.Unmarshal(body, &imageKey)
 		if err != nil {
@@ -141,8 +144,7 @@ func ClaimHandler(db *storage.DB) http.HandlerFunc {
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
-		// here we should create transformations for image key
-		// finding an image from S3
+
 		var buffer = bytes.Buffer{}
 		err = downloadFile(os.Getenv("S3_BUCKET_ENDPOINT") + imageKey.Key + ".jpg", &buffer)
 		if err != nil {
@@ -165,13 +167,6 @@ func ClaimHandler(db *storage.DB) http.HandlerFunc {
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
-
-		//imageLow, err := jpeg.Decode(bytes.NewReader(buffer.Bytes()))
-		//if err != nil {
-		//	log.Printf("ERROR: error on decoding an image with low resolution in clain method - %v", err)
-		//	respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
-		//	return
-		//}
 
 		lowImageKey := imageKey.Key + "_low"
 
