@@ -1,8 +1,8 @@
 language: go
 sudo: enabled
 before_script:
-  # - chmod 777 test/data
-  - sudo chown www-data test/data
+  - sudo chmod 777 test/data
+  # - sudo chown www-data test/data
   
 go:
   - "1.10.x"
