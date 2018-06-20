@@ -1,4 +1,4 @@
 language: go
-
+sudo: enabled
 go:
   - "1.10.x"
