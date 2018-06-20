@@ -1,6 +1,7 @@
 language: go
 sudo: enabled
 before_script:
-  - chmod 777 test/data
+  # - chmod 777 test/data
+  - sudo chown $(whoami) test/data
 go:
   - "1.10.x"
