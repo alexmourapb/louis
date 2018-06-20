@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/KazanExpress/Louis/internal/pkg/storage"
 	"github.com/rs/xid"
+	"image"
 	"image/jpeg"
 	_ "image/png"
-	"image"
 	"io"
 	"io/ioutil"
 	"log"
@@ -146,9 +146,9 @@ func ClaimHandler(db *storage.DB) http.HandlerFunc {
 		}
 
 		var buffer = bytes.Buffer{}
-		err = downloadFile(os.Getenv("S3_BUCKET_ENDPOINT") + imageKey.Key + ".jpg", &buffer)
+		err = downloadFile(os.Getenv("S3_BUCKET_ENDPOINT")+imageKey.Key+".jpg", &buffer)
 		if err != nil {
-			log.Printf("ERROR: error on downloading image with key '" + imageKey.Key + "' - %v", err)
+			log.Printf("ERROR: error on downloading image with key '"+imageKey.Key+"' - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
@@ -171,7 +171,7 @@ func ClaimHandler(db *storage.DB) http.HandlerFunc {
 		lowImageKey := imageKey.Key + "_low"
 
 		// TODO: Remove the following testing of how low image is saved to S3
-		output, err := storage.UploadFile(bytes.NewReader(lowBuffer.Bytes()), lowImageKey + ".jpg")
+		output, err := storage.UploadFile(bytes.NewReader(lowBuffer.Bytes()), lowImageKey+".jpg")
 		if failOnError(w, err, "failed to upload compressed image with low quality", http.StatusInternalServerError) {
 			return
 		}
