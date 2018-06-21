@@ -152,7 +152,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 		}
 
 		var buffer = bytes.Buffer{}
-		err = downloadFile(os.Getenv("S3_BUCKET_ENDPOINT")+imageKey.Key+".jpg", &buffer)
+		err = downloadFile(getURLByImageKey(imageKey.Key), &buffer)
 		if err != nil {
 			log.Printf("ERROR: error on downloading image with key '"+imageKey.Key+"' - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
@@ -200,6 +200,13 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 		imageData.Url = output.Location
 		respondWithJson(w, "", imageData, 200)
 	})
+}
+
+func getURLByImageKey(key string) string {
+	// TODO: maybe it's better to get URL from database?
+	// at least, it will be usefull when we will have
+	// separete buckets for each user
+	return os.Getenv("S3_BUCKET_ENDPOINT") + key + ".jpg"
 }
 
 func downloadFile(url string, w io.Writer) error {
