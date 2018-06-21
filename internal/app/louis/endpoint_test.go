@@ -81,16 +81,17 @@ func TestUploadAuthorization(test *testing.T) {
 	}
 	response := httptest.NewRecorder()
 
-	db, err := storage.Open(pathToTestDB)
+	appCtx := &AppContext{}
+	appCtx.DB, err = storage.Open(pathToTestDB)
 
 	failIfError(test, err, "failed to open db")
 	defer os.Remove(pathToTestDB)
 	defer os.Remove(pathToTestDB + "-journal")
-	defer db.Close()
+	defer appCtx.DB.Close()
 
-	failIfError(test, db.InitDB(), "failed to create initial tables")
+	failIfError(test, appCtx.DB.InitDB(), "failed to create initial tables")
 
-	UploadHandler(db)(response, request)
+	UploadHandler(appCtx)(response, request)
 	if response.Code != http.StatusUnauthorized {
 		test.Fatalf("Response code was %v; want 401", response.Code)
 	}
@@ -104,18 +105,19 @@ func TestClaimAuthorization(test *testing.T) {
 		test.Fatalf("Failed to create request: %v", err)
 	}
 
-	db, err := storage.Open(pathToTestDB)
+	appCtx := &AppContext{}
+	appCtx.DB, err = storage.Open(pathToTestDB)
 
 	failIfError(test, err, "failed to open db")
 	defer os.Remove(pathToTestDB)
 	defer os.Remove(pathToTestDB + "-journal")
 
-	defer db.Close()
+	defer appCtx.DB.Close()
 
-	failIfError(test, db.InitDB(), "failed to create initial tables")
+	failIfError(test, appCtx.DB.InitDB(), "failed to create initial tables")
 
 	response := httptest.NewRecorder()
-	ClaimHandler(db)(response, request)
+	ClaimHandler(appCtx)(response, request)
 	if response.Code != http.StatusUnauthorized {
 		test.Fatalf("Response code was %v; want 401", response.Code)
 	}
@@ -134,18 +136,19 @@ func TestUpload(test *testing.T) {
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
-	db, err := storage.Open(pathToTestDB)
+	appCtx := &AppContext{}
+	appCtx.DB, err = storage.Open(pathToTestDB)
 
 	failIfError(test, err, "failed to open db")
 	defer os.Remove(pathToTestDB)
 	defer os.Remove(pathToTestDB + "-journal")
 
-	defer db.Close()
+	defer appCtx.DB.Close()
 
-	failIfError(test, db.InitDB(), "failed to create initial tables")
+	failIfError(test, appCtx.DB.InitDB(), "failed to create initial tables")
 
 	response := httptest.NewRecorder()
-	UploadHandler(db)(response, request)
+	UploadHandler(appCtx)(response, request)
 	if response.Code != http.StatusOK {
 		test.Fatalf("Response code was %v; want 200", response.Code)
 	}
@@ -166,7 +169,7 @@ func TestUpload(test *testing.T) {
 		test.Fatalf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
 	}
 
-	rows, err := db.Query("SELECT URL FROM Images WHERE key=?", imageKey)
+	rows, err := appCtx.DB.Query("SELECT URL FROM Images WHERE key=?", imageKey)
 	defer rows.Close()
 
 	var URL string

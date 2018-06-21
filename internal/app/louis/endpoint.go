@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/KazanExpress/Louis/internal/pkg/storage"
 	"github.com/rs/xid"
+	"github.com/streadway/amqp"
 	"image"
 	"image/jpeg"
 	_ "image/png"
@@ -21,6 +22,11 @@ const (
 	HighCompressionQuality = 30
 	LowCompressionQuality  = 15
 )
+
+type AppContext struct {
+	DB         *storage.DB
+	Connection *amqp.Connection
+}
 
 type ImageData struct {
 	Key string `json:"key"`
@@ -51,7 +57,7 @@ func failOnError(w http.ResponseWriter, err error, logMessage string, code int) 
 	return false
 }
 
-func UploadHandler(db *storage.DB) http.HandlerFunc {
+func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		err, userID := authorizeByPublicKey(r.Header.Get("Authorization"))
@@ -85,7 +91,7 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 		var imageData ImageData
 		imageData.Key = xid.New().String()
 
-		tx, err := db.Begin()
+		tx, err := appCtx.DB.Begin()
 		if failOnError(w, err, "error on creating transaction", http.StatusInternalServerError) {
 			return
 		}
@@ -104,7 +110,7 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		tx, err = db.Begin()
+		tx, err = appCtx.DB.Begin()
 		if failOnError(w, err, "error on creating transaction", http.StatusInternalServerError) {
 			return
 		}
@@ -122,7 +128,7 @@ func UploadHandler(db *storage.DB) http.HandlerFunc {
 	})
 }
 
-func ClaimHandler(db *storage.DB) http.HandlerFunc {
+func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
 		if err != nil {
