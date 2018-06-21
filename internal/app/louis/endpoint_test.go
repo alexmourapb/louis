@@ -184,3 +184,61 @@ func TestUpload(test *testing.T) {
 		test.Fatalf("expected URL = true but get %v", URL)
 	}
 }
+
+func TestClaim(t *testing.T) {
+	godotenv.Load("../../../.env")
+
+	// Upload request
+	path, _ := os.Getwd()
+	path = filepath.Join(path, "../../../test/data/picture.jpg")
+	request, err := newFileUploadRequest("http://localhost:8000/upload", nil, "file", path)
+	if err != nil {
+		t.Error("Error should not be nil")
+		return
+	}
+
+	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+
+	appCtx := &AppContext{}
+	appCtx.DB, err = storage.Open(pathToTestDB)
+
+	failIfError(t, err, "failed to open db")
+	defer os.Remove(pathToTestDB)
+	defer os.Remove(pathToTestDB + "-journal")
+
+	defer appCtx.DB.Close()
+
+	failIfError(t, appCtx.DB.InitDB(), "failed to create initial tables")
+
+	response := httptest.NewRecorder()
+	UploadHandler(appCtx)(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("Response code was %v; want 200", response.Code)
+	}
+
+	var resp ResponseTemplate
+	failIfError(t, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
+
+	if resp.Error != "" {
+		t.Fatalf("expected response error to be empty but get - %s", resp.Error)
+	}
+
+	// var payload = resp.Payload.(map[string]interface{})
+
+	// url := payload["url"].(string)
+	// imageKey := payload["key"].(string)
+
+	// Claim response testing
+	response = httptest.NewRecorder()
+	request, err = newClaimRequest("http://localhost:8000/claim", resp.Payload)
+
+	failIfError(t, err, "failed to create claim request")
+	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))
+	ClaimHandler(appCtx)(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected claim response code 200 bug get %v", response.Code)
+	}
+
+	// TODO: add more checks(database, rabbitmq, etc)
+}
