@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -20,10 +21,14 @@ func main() {
 	}
 
 	appCtx := &louis.AppContext{}
-	// appCtx.Connection, err = amqp.Dial(os.Getenv("RABBITMQ_CONNETION"))
-	// if err != nil {
-	// 	log.Fatalf("ERROR: failed to connect to RabbitMQ instance - %v", err)
-	// }
+
+	if strings.ToLower(os.Getenv("TRANSFORMATIONS_ENABLED")) == "true" {
+		log.Printf("INFO: TRANSFORMATIONS_ENABLED flag is set to TRUE")
+		appCtx.RabbitMQConnection, err = amqp.Dial(os.Getenv("RABBITMQ_CONNECTION"))
+		if err != nil {
+			log.Fatalf("ERROR: failed to connect to RabbitMQ instance - %v", err)
+		}
+	}
 
 	appCtx.DB, err = storage.Open(os.Getenv("DATA_SOURCE_NAME"))
 	initdb := flag.Bool("initdb", false, "if true then non-existing database tables will be created")

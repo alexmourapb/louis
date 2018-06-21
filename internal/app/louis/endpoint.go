@@ -24,8 +24,8 @@ const (
 )
 
 type AppContext struct {
-	DB         *storage.DB
-	Connection *amqp.Connection
+	DB                 *storage.DB
+	RabbitMQConnection *amqp.Connection
 }
 
 type ImageData struct {
