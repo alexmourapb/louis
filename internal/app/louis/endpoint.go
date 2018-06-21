@@ -130,7 +130,7 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 
 func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err, _ := authorizeBySecretKey(r.Header.Get("Authorization"))
+		err, userID := authorizeBySecretKey(r.Header.Get("Authorization"))
 		if err != nil {
 			respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
 			return
@@ -179,6 +179,19 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 		// TODO: Remove the following testing of how low image is saved to S3
 		output, err := storage.UploadFile(bytes.NewReader(lowBuffer.Bytes()), lowImageKey+".jpg")
 		if failOnError(w, err, "failed to upload compressed image with low quality", http.StatusInternalServerError) {
+			return
+		}
+
+		tx, err := appCtx.DB.Begin()
+		if failOnError(w, err, "failed to create transaction for claiming image", http.StatusInternalServerError) {
+			return
+		}
+
+		if failOnError(w, tx.ClaimImage(imageKey.Key, userID), "failed to claim image", http.StatusInternalServerError) {
+			return
+		}
+
+		if failOnError(w, tx.Commit(), "failed to commit claiming image", http.StatusInternalServerError) {
 			return
 		}
 

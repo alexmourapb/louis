@@ -223,10 +223,10 @@ func TestClaim(t *testing.T) {
 		t.Fatalf("expected response error to be empty but get - %s", resp.Error)
 	}
 
-	// var payload = resp.Payload.(map[string]interface{})
+	var payload = resp.Payload.(map[string]interface{})
 
 	// url := payload["url"].(string)
-	// imageKey := payload["key"].(string)
+	imageKey := payload["key"].(string)
 
 	// Claim response testing
 	response = httptest.NewRecorder()
@@ -240,5 +240,18 @@ func TestClaim(t *testing.T) {
 		t.Fatalf("expected claim response code 200 bug get %v", response.Code)
 	}
 
+	rows, err := appCtx.DB.Query("SELECT Approved FROM Images WHERE key=?", imageKey)
+	failIfError(t, err, "failed to execute sql query")
+
+	var approved bool
+	if rows.Next() {
+		failIfError(t, rows.Scan(&approved), "failed to scan 'approved' value")
+	} else {
+		t.Fatalf("image with key=%s not found in db", imageKey)
+	}
+
+	if !approved {
+		t.Fatalf("expected approved to be true but recieved false")
+	}
 	// TODO: add more checks(database, rabbitmq, etc)
 }
