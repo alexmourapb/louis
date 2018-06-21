@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/streadway/amqp"
 	"log"
 	"net/http"
 	"os"
@@ -18,12 +19,18 @@ func main() {
 		log.Printf("INFO: .env file not found using real env variables")
 	}
 
-	database, err := storage.Open(os.Getenv("DATA_SOURCE_NAME"))
+	appCtx := &louis.AppContext{}
+	// appCtx.Connection, err = amqp.Dial(os.Getenv("RABBITMQ_CONNETION"))
+	// if err != nil {
+	// 	log.Fatalf("ERROR: failed to connect to RabbitMQ instance - %v", err)
+	// }
+
+	appCtx.DB, err = storage.Open(os.Getenv("DATA_SOURCE_NAME"))
 	initdb := flag.Bool("initdb", false, "if true then non-existing database tables will be created")
 	flag.Parse()
 
 	if *initdb {
-		if err = database.InitDB(); err != nil {
+		if err = appCtx.DB.InitDB(); err != nil {
 			log.Fatalf("ERROR: failed to init db - %v", err)
 		}
 	}
@@ -34,8 +41,8 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
-	router.Handle("/upload", louis.UploadHandler(database)).Methods("POST")
-	router.HandleFunc("/claim", louis.ClaimHandler(database)).Methods("POST")
+	router.Handle("/upload", louis.UploadHandler(appCtx)).Methods("POST")
+	router.HandleFunc("/claim", louis.ClaimHandler(appCtx)).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8000", router))
 
 	// testS3()
