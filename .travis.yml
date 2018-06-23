@@ -11,4 +11,4 @@ services:
   - rabbitmq
 
 env:
-  - RABBITMQ_CONNECTION=amqp://guest:guest@127.0.0.1:5672/
+  - RABBITMQ_CONNECTION=amqp://guest:guest@localhost:5672/
