@@ -1,5 +1,7 @@
 # Louis
 
+[![Build Status](https://travis-ci.com/KazanExpress/louis.svg?branch=master)](https://travis-ci.com/KazanExpress/louis)
+
 Service for uploading images to any S3 compatible storage.
 
 ## Running the server
