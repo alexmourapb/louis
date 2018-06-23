@@ -160,6 +160,12 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 
 		image.Url = getURLByImageKey(image.Key)
 
+		if appCtx.TransformationsEnabled {
+			log.Println("DEBUG: passing image to amqp")
+			if failOnError(w, passImageToAMQP(appCtx, &image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
+				return
+			}
+		}
 		var buffer = bytes.Buffer{}
 		err = downloadFile(image.Url, &buffer)
 		if err != nil {
@@ -202,12 +208,6 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 
 		if failOnError(w, tx.Commit(), "failed to commit claiming image", http.StatusInternalServerError) {
 			return
-		}
-
-		if appCtx.TransformationsEnabled {
-			if failOnError(w, passImageToAMQP(appCtx, &image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
-				return
-			}
 		}
 
 		var imageData ImageData
