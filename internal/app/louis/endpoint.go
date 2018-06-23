@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/KazanExpress/Louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/rs/xid"
 	"github.com/streadway/amqp"
 	"image"

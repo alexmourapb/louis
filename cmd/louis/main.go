@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/KazanExpress/Louis/internal/app/louis"
-	"github.com/KazanExpress/Louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/app/louis"
+	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
