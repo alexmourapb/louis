@@ -171,6 +171,7 @@ func TestClaim(t *testing.T) {
 
 	if appCtx.TransformationsEnabled {
 		ch, err := appCtx.RabbitMQConnection.Channel()
+		defer ch.Close()
 		failIfError(t, err, "failed to create amqp channel")
 
 		q, err := queue.DeclareQueue(TransformationsQueueName, ch)

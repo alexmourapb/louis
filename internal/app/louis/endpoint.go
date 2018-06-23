@@ -161,7 +161,6 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 		image.Url = getURLByImageKey(image.Key)
 
 		if appCtx.TransformationsEnabled {
-			log.Println("DEBUG: passing image to amqp")
 			if failOnError(w, passImageToAMQP(appCtx, &image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
 				return
 			}
@@ -219,6 +218,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 
 func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
 	ch, err := appCtx.RabbitMQConnection.Channel()
+	defer ch.Close()
 	if err != nil {
 		return err
 	}
