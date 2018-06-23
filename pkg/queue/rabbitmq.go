@@ -44,9 +44,9 @@ func Consume(ch *amqp.Channel, name string) (<-chan amqp.Delivery, error) {
 // Publish - puts message int queue
 func Publish(ch *amqp.Channel, name string, body []byte) error {
 	return ch.Publish(
-		"",    // exchange
-		name,  // routing key
-		false, // mandatory
+		"",   // exchange
+		name, // routing key
+		true, // mandatory
 		false,
 		amqp.Publishing{
 			DeliveryMode: amqp.Persistent,
