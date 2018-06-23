@@ -240,6 +240,7 @@ func TestClaim(t *testing.T) {
 		t.Fatalf("expected claim response code 200 bug get %v", response.Code)
 	}
 
+	// testing if db is in correct state
 	rows, err := appCtx.DB.Query("SELECT Approved FROM Images WHERE key=?", imageKey)
 	failIfError(t, err, "failed to execute sql query")
 
@@ -253,5 +254,7 @@ func TestClaim(t *testing.T) {
 	if !approved {
 		t.Fatalf("expected approved to be true but recieved false")
 	}
+
+	// testing if
 	// TODO: add more checks(database, rabbitmq, etc)
 }

@@ -4,11 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	//"github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
 	*sql.DB
+	driver         string
+	dataSourceName string
 }
 type Tx struct {
 	*sql.Tx
@@ -21,7 +24,7 @@ func Open(dataSourceName string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DB{db}, nil
+	return &DB{db, "sqlite3", dataSourceName}, nil
 }
 
 // Begin starts an returns a new transaction.
@@ -58,6 +61,17 @@ func (db *DB) InitDB() error {
 
 		 FOREIGN KEY(UserID) REFERENCES Users(ID))`)
 	return err
+}
+
+func (db *DB) DropDB() error {
+	db.Close()
+	if db.driver == "sqlite3" {
+		os.Remove(db.dataSourceName)
+		return os.Remove(db.dataSourceName + "-journal")
+
+	}
+
+	return fmt.Errorf("'%s' driver not supported", db.driver)
 }
 
 // CreateImage creates a new image.

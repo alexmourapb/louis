@@ -1,12 +1,17 @@
 package storage
 
 import (
+	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-	"os"
+	// "os"
 	"testing"
 )
 
 var pathToTestDB = "../../../test/data/test.db"
+
+func getDB() (*DB, error) {
+	return Open(pathToTestDB)
+}
 
 func failIfError(t *testing.T, err error, msg string) {
 	if err != nil {
@@ -14,9 +19,8 @@ func failIfError(t *testing.T, err error, msg string) {
 	}
 }
 func TestInitDB(t *testing.T) {
-	var db, err = Open(pathToTestDB)
-	defer os.Remove(pathToTestDB)
-	defer db.Close()
+	var db, err = getDB()
+	defer db.DropDB()
 
 	failIfError(t, err, "failed to open db")
 
@@ -24,15 +28,12 @@ func TestInitDB(t *testing.T) {
 }
 
 func TestCreateImage(t *testing.T) {
-	var db, err = Open(pathToTestDB)
-	defer os.Remove(pathToTestDB)
-	defer os.Remove(pathToTestDB + "-journal")
-	defer db.Close()
+	var db, err = getDB()
+	defer db.DropDB()
 
 	failIfError(t, err, "failed to open db")
 
-	err = db.InitDB()
-	failIfError(t, err, "failed to create tables")
+	failIfError(t, db.InitDB(), "failed to create tables")
 
 	tx, err := db.Begin()
 	failIfError(t, err, "failed to create transaction")
@@ -75,10 +76,8 @@ func TestCreateImage(t *testing.T) {
 }
 
 func TestClaimImage(t *testing.T) {
-	var db, err = Open(pathToTestDB)
-	defer os.Remove(pathToTestDB)
-	defer os.Remove(pathToTestDB + "-journal")
-	defer db.Close()
+	var db, err = getDB()
+	defer db.DropDB()
 
 	failIfError(t, err, "failed to open db")
 
@@ -122,10 +121,8 @@ func TestClaimImage(t *testing.T) {
 
 func TestSetImageURL(t *testing.T) {
 
-	var db, err = Open(pathToTestDB)
-	defer os.Remove(pathToTestDB)
-	defer os.Remove(pathToTestDB + "-journal")
-	defer db.Close()
+	var db, err = getDB()
+	defer db.DropDB()
 
 	failIfError(t, err, "failed to open db")
 
