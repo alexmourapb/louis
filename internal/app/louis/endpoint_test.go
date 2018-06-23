@@ -60,7 +60,7 @@ func newClaimRequest(uri string, payload interface{}) (*http.Request, error) {
 	return req, err
 }
 
-var pathToTestDB = "../../../test/data/test.db"
+var pathToTestDB = "test.db"
 
 func failIfError(t *testing.T, err error, msg string) {
 	if err != nil {
@@ -140,10 +140,7 @@ func TestUpload(test *testing.T) {
 	appCtx.DB, err = storage.Open(pathToTestDB)
 
 	failIfError(test, err, "failed to open db")
-	defer os.Remove(pathToTestDB)
-	defer os.Remove(pathToTestDB + "-journal")
-
-	defer appCtx.DB.Close()
+	defer appCtx.DB.DropDB()
 
 	failIfError(test, appCtx.DB.InitDB(), "failed to create initial tables")
 
