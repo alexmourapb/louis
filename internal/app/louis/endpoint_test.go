@@ -192,8 +192,8 @@ func TestClaim(t *testing.T) {
 			if data.Url != imageURL {
 				t.Fatalf("amqp message is invalid: expected %v but get %v", imageURL, data.Url)
 			}
-		case <-time.After(3 * time.Second):
-			t.Fatalf("timeout error: rabbitmq message not recieved in 3 seconds")
+		case <-time.After(10 * time.Second):
+			t.Fatalf("timeout error: rabbitmq message not recieved in 10 seconds")
 		}
 
 	}
