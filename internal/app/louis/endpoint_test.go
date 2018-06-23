@@ -60,7 +60,7 @@ func newClaimRequest(uri string, payload interface{}) (*http.Request, error) {
 	return req, err
 }
 
-var pathToTestDB = "test.db"
+var pathToTestDB = "../../../test/data/test.db"
 
 func failIfError(t *testing.T, err error, msg string) {
 	if err != nil {
@@ -85,9 +85,7 @@ func TestUploadAuthorization(test *testing.T) {
 	appCtx.DB, err = storage.Open(pathToTestDB)
 
 	failIfError(test, err, "failed to open db")
-	defer os.Remove(pathToTestDB)
-	defer os.Remove(pathToTestDB + "-journal")
-	defer appCtx.DB.Close()
+	defer appCtx.DB.DropDB()
 
 	failIfError(test, appCtx.DB.InitDB(), "failed to create initial tables")
 
@@ -109,10 +107,8 @@ func TestClaimAuthorization(test *testing.T) {
 	appCtx.DB, err = storage.Open(pathToTestDB)
 
 	failIfError(test, err, "failed to open db")
-	defer os.Remove(pathToTestDB)
-	defer os.Remove(pathToTestDB + "-journal")
 
-	defer appCtx.DB.Close()
+	defer appCtx.DB.DropDB()
 
 	failIfError(test, appCtx.DB.InitDB(), "failed to create initial tables")
 
@@ -200,10 +196,8 @@ func TestClaim(t *testing.T) {
 	appCtx.DB, err = storage.Open(pathToTestDB)
 
 	failIfError(t, err, "failed to open db")
-	defer os.Remove(pathToTestDB)
-	defer os.Remove(pathToTestDB + "-journal")
 
-	defer appCtx.DB.Close()
+	defer appCtx.DB.DropDB()
 
 	failIfError(t, appCtx.DB.InitDB(), "failed to create initial tables")
 
