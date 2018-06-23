@@ -218,7 +218,6 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 
 func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
 	ch, err := appCtx.RabbitMQConnection.Channel()
-	defer ch.Close()
 	if err != nil {
 		return err
 	}
@@ -228,7 +227,10 @@ func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
 		return err
 	}
 
-	return queue.Publish(ch, TransformationsQueueName, body)
+	if err = queue.Publish(ch, TransformationsQueueName, body); err != nil {
+		return err
+	}
+	return ch.Close()
 }
 
 func getURLByImageKey(key string) string {
