@@ -60,7 +60,7 @@ func newClaimRequest(uri string, payload interface{}) (*http.Request, error) {
 	return req, err
 }
 
-var pathToTestDB = "../../../test/data/test.db"
+var pathToTestDB = "../../../test/data/test2.db"
 
 func failIfError(t *testing.T, err error, msg string) {
 	if err != nil {
