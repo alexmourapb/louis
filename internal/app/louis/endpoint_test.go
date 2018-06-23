@@ -223,7 +223,11 @@ func getAppContext() (*AppContext, error) {
 	var err error
 	appCtx := &AppContext{TransformationsEnabled: true}
 
-	if appCtx.RabbitMQConnection, err = amqp.Dial(amqpConnection); err != nil {
+	amqpCon := amqpConnection
+	if envCon, envIsSet := os.LookupEnv("RABBITMQ_CONNECTION"); envIsSet {
+		amqpCon = envCon
+	}
+	if appCtx.RabbitMQConnection, err = amqp.Dial(amqpCon); err != nil {
 		return nil, err
 	}
 
