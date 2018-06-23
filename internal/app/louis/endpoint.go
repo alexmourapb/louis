@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/pkg/queue"
 	"github.com/rs/xid"
 	"github.com/streadway/amqp"
 	"image"
@@ -18,9 +19,10 @@ import (
 )
 
 const (
-	MaxImageSize           = 5 * 1024 * 1024 // bytes
-	HighCompressionQuality = 30
-	LowCompressionQuality  = 15
+	MaxImageSize             = 5 * 1024 * 1024 // bytes
+	HighCompressionQuality   = 30
+	LowCompressionQuality    = 15
+	TransformationsQueueName = "transformations_queue"
 )
 
 type AppContext struct {
@@ -41,6 +43,10 @@ type ImageKey struct {
 type ResponseTemplate struct {
 	Error   string      `json:"error"`
 	Payload interface{} `json:"payload"`
+}
+
+func (appCtx *AppContext) Close() error {
+	return appCtx.DB.DropDB()
 }
 
 func GetDashboard(w http.ResponseWriter, r *http.Request) {
@@ -144,18 +150,20 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		var imageKey ImageKey
-		err = json.Unmarshal(body, &imageKey)
+		var image ImageData
+		err = json.Unmarshal(body, &image)
 		if err != nil {
 			log.Printf("ERROR: error on object deserialization - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
 
+		image.Url = getURLByImageKey(image.Key)
+
 		var buffer = bytes.Buffer{}
-		err = downloadFile(getURLByImageKey(imageKey.Key), &buffer)
+		err = downloadFile(image.Url, &buffer)
 		if err != nil {
-			log.Printf("ERROR: error on downloading image with key '"+imageKey.Key+"' - %v", err)
+			log.Printf("ERROR: error on downloading image with key '"+image.Key+"' - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
@@ -175,7 +183,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		lowImageKey := imageKey.Key + "_low"
+		lowImageKey := image.Key + "_low"
 
 		// TODO: Remove the following testing of how low image is saved to S3
 		output, err := storage.UploadFile(bytes.NewReader(lowBuffer.Bytes()), lowImageKey+".jpg")
@@ -188,7 +196,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		if failOnError(w, tx.ClaimImage(imageKey.Key, userID), "failed to claim image", http.StatusInternalServerError) {
+		if failOnError(w, tx.ClaimImage(image.Key, userID), "failed to claim image", http.StatusInternalServerError) {
 			return
 		}
 
@@ -196,11 +204,31 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
+		if appCtx.TransformationsEnabled {
+			if failOnError(w, passImageToAMQP(appCtx, &image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
+				return
+			}
+		}
+
 		var imageData ImageData
 		imageData.Key = lowImageKey
 		imageData.Url = output.Location
 		respondWithJson(w, "", imageData, 200)
 	})
+}
+
+func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
+	ch, err := appCtx.RabbitMQConnection.Channel()
+	if err != nil {
+		return err
+	}
+
+	body, err := json.Marshal(*image)
+	if err != nil {
+		return err
+	}
+
+	return queue.Publish(ch, TransformationsQueueName, body)
 }
 
 func getURLByImageKey(key string) string {
