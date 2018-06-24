@@ -42,15 +42,52 @@ func Consume(ch *amqp.Channel, name string) (<-chan amqp.Delivery, error) {
 }
 
 // Publish - puts message int queue
-func Publish(ch *amqp.Channel, name string, body []byte) error {
+func Publish(ch *amqp.Channel, exchangeName string, body []byte) error {
 	return ch.Publish(
-		"",   // exchange
-		name, // routing key
-		true, // mandatory
-		false,
+		exchangeName, // exchange
+		"",           // routing key
+		true,         // mandatory
+		false,        // immediate
 		amqp.Publishing{
 			DeliveryMode: amqp.Persistent,
 			ContentType:  "text/plain",
 			Body:         body,
 		})
+}
+
+// DelcareExchange - declares exchange for putting messages
+func DelcareExchange(ch *amqp.Channel, name string) error {
+	return ch.ExchangeDeclare(
+		name,     // name
+		"fanout", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+}
+
+func DeclareExchangeWithAE(ch *amqp.Channel, name, AEName string) error {
+	var args = make(map[string]interface{})
+	args["alternate-exchange"] = AEName
+	return ch.ExchangeDeclare(
+		name,     // name
+		"fanout", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		args,     // arguments
+	)
+
+}
+
+func BindQueueAndExchang(ch *amqp.Channel, queueName, exchangeName string) error {
+	return ch.QueueBind(
+		queueName,    // queue name
+		"#",          // routing key
+		exchangeName, // exchange
+		false,        // nowait
+		nil)
 }

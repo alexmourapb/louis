@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	MaxImageSize             = 5 * 1024 * 1024 // bytes
-	HighCompressionQuality   = 30
-	LowCompressionQuality    = 15
-	TransformationsQueueName = "transformations_queue"
+	MaxImageSize                = 5 * 1024 * 1024 // bytes
+	HighCompressionQuality      = 30
+	LowCompressionQuality       = 15
+	TransformationsExchangeName = "transformations_xc"
 )
 
 type AppContext struct {
@@ -227,7 +227,19 @@ func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
 		return err
 	}
 
-	if err = queue.Publish(ch, TransformationsQueueName, body); err != nil {
+	if err = queue.DelcareExchange(ch, "x-ae"); err != nil {
+		return err
+	}
+
+	if err = queue.DeclareExchangeWithAE(ch, TransformationsExchangeName, "x-ae"); err != nil {
+		return err
+	}
+
+	queue.DeclareQueue("unrouted", ch)
+
+	queue.BindQueueAndExchang(ch, "unrouted", "x-ae")
+
+	if err = queue.Publish(ch, TransformationsExchangeName, body); err != nil {
 		return err
 	}
 	return ch.Close()

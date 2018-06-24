@@ -174,8 +174,15 @@ func TestClaim(t *testing.T) {
 		defer ch.Close()
 		failIfError(t, err, "failed to create amqp channel")
 
-		q, err := queue.DeclareQueue(TransformationsQueueName, ch)
+		failIfError(t, queue.DelcareExchange(ch, "x-ae"), "failed to declare ae")
+
+		err = queue.DeclareExchangeWithAE(ch, TransformationsExchangeName, "x-ae")
+		failIfError(t, err, "failed to declare amqp exchange")
+
+		q, err := queue.DeclareQueue("", ch)
 		failIfError(t, err, "failed to create amqp queue")
+
+		failIfError(t, queue.BindQueueAndExchang(ch, q.Name, TransformationsExchangeName), "failed to bind queue to exchange")
 
 		msgs, err := queue.Consume(ch, q.Name)
 		failIfError(t, err, "failed to consume messages")
