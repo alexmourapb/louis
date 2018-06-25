@@ -37,7 +37,7 @@ func TestUploadAuthorization(test *testing.T) {
 	response := httptest.NewRecorder()
 
 	appCtx, err := getAppContext()
-	defer appCtx.Close()
+	defer appCtx.DropAll()
 
 	failIfError(test, err, "failed to get app ctx")
 
@@ -54,7 +54,7 @@ func TestClaimAuthorization(test *testing.T) {
 	failIfError(test, err, "failed to create file upload request")
 
 	appCtx, err := getAppContext()
-	defer appCtx.Close()
+	defer appCtx.DropAll()
 
 	failIfError(test, err, "failed to get app ctx")
 
@@ -76,7 +76,7 @@ func TestUpload(test *testing.T) {
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
 	appCtx, err := getAppContext()
-	defer appCtx.Close()
+	defer appCtx.DropAll()
 
 	failIfError(test, err, "failed to get app ctx")
 
@@ -122,7 +122,7 @@ func TestClaim(t *testing.T) {
 	godotenv.Load("../../../.env")
 
 	appCtx, err := getAppContext()
-	defer appCtx.Close()
+	defer appCtx.DropAll()
 
 	failIfError(t, err, "failed to get app ctx")
 
@@ -216,12 +216,9 @@ func ensureDatabaseStateAfterClaim(t *testing.T, appCtx *AppContext, imageKey st
 func getAppContext() (*AppContext, error) {
 	var err error
 	appCtx := &AppContext{TransformationsEnabled: true}
+	appCtx.RedisConnection = redisConnection
 
-	redConn := redisConnection
-	if envCon, envIsSet := os.LookupEnv("REDIS_CONNECTION"); envIsSet {
-		redConn = envCon
-	}
-	if appCtx.Queue, err = queue.NewMachineryQueue(redConn); err != nil {
+	if appCtx.Queue, err = queue.NewMachineryQueue(redisConnection); err != nil {
 		return nil, err
 	}
 

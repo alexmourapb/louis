@@ -10,7 +10,6 @@ const QueueName = "transformations_queue"
 
 type JobQueue interface {
 	Publish(data []byte) error
-	// Consume() ([]byte, error)
 }
 
 type MachineryQueue struct {

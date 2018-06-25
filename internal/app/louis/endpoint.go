@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/go-redis/redis"
 	"github.com/rs/xid"
 	"image"
 	"image/jpeg"
@@ -28,6 +29,7 @@ type AppContext struct {
 	DB                     *storage.DB
 	Queue                  queue.JobQueue
 	TransformationsEnabled bool
+	RedisConnection        string
 }
 
 type ImageData struct {
@@ -44,7 +46,20 @@ type ResponseTemplate struct {
 	Payload interface{} `json:"payload"`
 }
 
-func (appCtx *AppContext) Close() error {
+func (appCtx *AppContext) DropAll() error {
+
+	if appCtx.TransformationsEnabled {
+
+		client := redis.NewClient(&redis.Options{
+			Addr:     appCtx.RedisConnection[:7],
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})
+		err := client.FlushAll().Err()
+		if err != nil {
+			log.Printf("WARN: failed to drop redis - %v", err)
+		}
+	}
 	return appCtx.DB.DropDB()
 }
 
