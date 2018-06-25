@@ -23,8 +23,8 @@ AWS_SECRET_ACCESS_KEY=<your secret key>
 LOUIS_PUBLIC_KEY=<key used for uploading images>
 LOUIS_SECRET_KEY=<key used for claiming images>
 DATA_SOURCE_NAME=<path to sqlite db>
-RABBITMQ_CONNECTION=<connection to rabbitmq, used if transformations enabled>
-TRANSFORMATIONS_ENABLED=<true/false; if true then information about claimed images will be passed via rabbitmq to be transformed>
+REDIS_CONNECTION=<connection to redis, used if transformations enabled>
+TRANSFORMATIONS_ENABLED=<true/false; if true then information about claimed images will be passed via machinery/redis to be transformed>
 ```
 
 Example:
@@ -39,6 +39,6 @@ AWS_SECRET_ACCESS_KEY=super-secret-key
 LOUIS_PUBLIC_KEY=well-known-public-key
 LOUIS_SECRET_KEY=secret-louis-key
 DATA_SOURCE_NAME=mysqlite.db
-RABBITMQ_CONNECTION=amqp://guest:guest@localhost:5672/
+REDIS_CONNECTION=redis://password@localhost:6379/
 TRANSFORMATIONS_ENABLED=false
 ```
