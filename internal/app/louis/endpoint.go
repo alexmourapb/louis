@@ -34,7 +34,7 @@ type AppContext struct {
 
 type ImageData struct {
 	Key string `json:"key"`
-	Url string `json:"url"`
+	URL string `json:"url"`
 }
 
 type ImageKey struct {
@@ -51,7 +51,7 @@ func (appCtx *AppContext) DropAll() error {
 	if appCtx.TransformationsEnabled {
 
 		client := redis.NewClient(&redis.Options{
-			Addr:     appCtx.RedisConnection[:7],
+			Addr:     appCtx.RedisConnection[8:],
 			Password: "", // no password set
 			DB:       0,  // use default DB
 		})
@@ -144,7 +144,7 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		imageData.Url = output.Location
+		imageData.URL = output.Location
 		respondWithJson(w, "", imageData, 200)
 	})
 }
@@ -172,7 +172,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		image.Url = getURLByImageKey(image.Key)
+		image.URL = getURLByImageKey(image.Key)
 
 		if appCtx.TransformationsEnabled {
 			if failOnError(w, passImageToAMQP(appCtx, &image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
@@ -180,7 +180,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			}
 		}
 		var buffer = bytes.Buffer{}
-		err = downloadFile(image.Url, &buffer)
+		err = downloadFile(image.URL, &buffer)
 		if err != nil {
 			log.Printf("ERROR: error on downloading image with key '"+image.Key+"' - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
@@ -225,7 +225,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 
 		var imageData ImageData
 		imageData.Key = lowImageKey
-		imageData.Url = output.Location
+		imageData.URL = output.Location
 		respondWithJson(w, "", imageData, 200)
 	})
 }

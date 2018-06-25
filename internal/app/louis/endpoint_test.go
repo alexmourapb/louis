@@ -21,7 +21,7 @@ import (
 
 const (
 	pathToTestDB    = "../../../test/data/test2.db"
-	redisConnection = "redis://localhost:6379"
+	redisConnection = "redis://127.0.0.1:6379"
 )
 
 func TestUploadAuthorization(test *testing.T) {
@@ -187,8 +187,8 @@ func TestClaim(t *testing.T) {
 			t.Fatalf("job task is invalid: expected %v but get %v", imageKey, img.Key)
 		}
 
-		if img.Url != imageURL {
-			t.Fatalf("job task is invalid: expected %v but get %v", imageURL, img.Url)
+		if img.URL != imageURL {
+			t.Fatalf("job task is invalid: expected %v but get %v", imageURL, img.URL)
 		}
 	}
 	// testing if
