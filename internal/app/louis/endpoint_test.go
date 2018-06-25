@@ -3,16 +3,14 @@ package louis
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/KazanExpress/louis/pkg/queue"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/streadway/amqp"
 	"io"
 	"log"
 	"mime/multipart"
 	"strings"
-	"time"
 
 	"net/http"
 	"net/http/httptest"
@@ -22,8 +20,8 @@ import (
 )
 
 const (
-	pathToTestDB   = "../../../test/data/test2.db"
-	amqpConnection = "amqp://guest:guest@localhost:5672/"
+	pathToTestDB    = "../../../test/data/test2.db"
+	redisConnection = "redis://localhost:6379"
 )
 
 func TestUploadAuthorization(test *testing.T) {
@@ -170,40 +168,28 @@ func TestClaim(t *testing.T) {
 	ensureDatabaseStateAfterClaim(t, appCtx, imageKey)
 
 	if appCtx.TransformationsEnabled {
-		ch, err := appCtx.RabbitMQConnection.Channel()
-		defer ch.Close()
-		failIfError(t, err, "failed to create amqp channel")
 
-		failIfError(t, queue.DelcareExchange(ch, "x-ae"), "failed to declare ae")
+		server := appCtx.Queue.(*queue.MachineryQueue).MachineryServer
+		tasks, err := server.GetBroker().GetPendingTasks(queue.QueueName)
 
-		err = queue.DeclareExchangeWithAE(ch, TransformationsExchangeName, "x-ae")
-		failIfError(t, err, "failed to declare amqp exchange")
-
-		q, err := queue.DeclareQueue("", ch)
-		failIfError(t, err, "failed to create amqp queue")
-
-		failIfError(t, queue.BindQueueAndExchang(ch, q.Name, TransformationsExchangeName), "failed to bind queue to exchange")
-
-		msgs, err := queue.Consume(ch, q.Name)
-		failIfError(t, err, "failed to consume messages")
-
-		select {
-		case d := <-msgs:
-			var data ImageData
-
-			defer d.Ack(false)
-			failIfError(t, json.Unmarshal(d.Body, &data), "failed to unmarshall amqp message")
-			if data.Key != imageKey {
-				t.Fatalf("amqp message is invalid: expected %v but get %v", imageKey, data.Key)
-			}
-
-			if data.Url != imageURL {
-				t.Fatalf("amqp message is invalid: expected %v but get %v", imageURL, data.Url)
-			}
-		case <-time.After(10 * time.Second):
-			t.Fatalf("timeout error: rabbitmq message not recieved in 10 seconds")
+		failIfError(t, err, "failed to get pending tasks")
+		if len(tasks) != 1 {
+			t.Fatalf("expected to have 1 task but get %v", len(tasks))
 		}
 
+		taskArg := tasks[0].Args[0]
+
+		data := []byte(taskArg.Value.(string))
+		var img ImageData
+		failIfError(t, json.Unmarshal(data, &img), "failed to unmarshal recieved bytes")
+
+		if img.Key != imageKey {
+			t.Fatalf("job task is invalid: expected %v but get %v", imageKey, img.Key)
+		}
+
+		if img.Url != imageURL {
+			t.Fatalf("job task is invalid: expected %v but get %v", imageURL, img.Url)
+		}
 	}
 	// testing if
 	// TODO: add more checks(database, rabbitmq, etc)
@@ -231,11 +217,11 @@ func getAppContext() (*AppContext, error) {
 	var err error
 	appCtx := &AppContext{TransformationsEnabled: true}
 
-	amqpCon := amqpConnection
-	if envCon, envIsSet := os.LookupEnv("RABBITMQ_CONNECTION"); envIsSet {
-		amqpCon = envCon
+	redConn := redisConnection
+	if envCon, envIsSet := os.LookupEnv("REDIS_CONNECTION"); envIsSet {
+		redConn = envCon
 	}
-	if appCtx.RabbitMQConnection, err = amqp.Dial(amqpCon); err != nil {
+	if appCtx.Queue, err = queue.NewMachineryQueue(redConn); err != nil {
 		return nil, err
 	}
 

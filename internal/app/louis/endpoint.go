@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/KazanExpress/louis/pkg/queue"
 	"github.com/rs/xid"
-	"github.com/streadway/amqp"
 	"image"
 	"image/jpeg"
 	_ "image/png"
@@ -27,7 +26,7 @@ const (
 
 type AppContext struct {
 	DB                     *storage.DB
-	RabbitMQConnection     *amqp.Connection
+	Queue                  queue.JobQueue
 	TransformationsEnabled bool
 }
 
@@ -217,32 +216,13 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 }
 
 func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
-	ch, err := appCtx.RabbitMQConnection.Channel()
-	if err != nil {
-		return err
-	}
 
 	body, err := json.Marshal(*image)
 	if err != nil {
 		return err
 	}
 
-	if err = queue.DelcareExchange(ch, "x-ae"); err != nil {
-		return err
-	}
-
-	if err = queue.DeclareExchangeWithAE(ch, TransformationsExchangeName, "x-ae"); err != nil {
-		return err
-	}
-
-	queue.DeclareQueue("unrouted", ch)
-
-	queue.BindQueueAndExchang(ch, "unrouted", "x-ae")
-
-	if err = queue.Publish(ch, TransformationsExchangeName, body); err != nil {
-		return err
-	}
-	return ch.Close()
+	return appCtx.Queue.Publish(body)
 }
 
 func getURLByImageKey(key string) string {
