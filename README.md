@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.com/KazanExpress/louis.svg?branch=master)](https://travis-ci.com/KazanExpress/louis)
 
+[![Coverage Status](https://coveralls.io/repos/github/KazanExpress/louis/badge.svg?branch=master)](https://coveralls.io/github/KazanExpress/louis?branch=master)
+
 Service for uploading images to any S3 compatible storage.
 
 ## Running the server
