@@ -8,7 +8,7 @@ go:
   - "1.10.x"
 
 services:
-  - rabbitmq
+  - redis
 
 env:
-  - RABBITMQ_CONNECTION=amqp://guest:guest@127.0.0.1:5672/
+  - REDIS_CONNECTION=redis://127.0.0.1:6379/
