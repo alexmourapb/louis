@@ -3,11 +3,11 @@ package main
 import (
 	"flag"
 	"github.com/KazanExpress/louis/internal/app/louis"
+	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/streadway/amqp"
 	"log"
 	"net/http"
 	"os"
@@ -25,7 +25,7 @@ func main() {
 	if strings.ToLower(os.Getenv("TRANSFORMATIONS_ENABLED")) == "true" {
 		log.Printf("INFO: TRANSFORMATIONS_ENABLED flag is set to TRUE")
 		appCtx.TransformationsEnabled = true
-		appCtx.RabbitMQConnection, err = amqp.Dial(os.Getenv("RABBITMQ_CONNECTION"))
+		appCtx.Queue, err = queue.NewMachineryQueue(os.Getenv("REDIS_CONNECTION"))
 		if err != nil {
 			log.Fatalf("ERROR: failed to connect to RabbitMQ instance - %v", err)
 		}
