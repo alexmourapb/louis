@@ -40,16 +40,19 @@ func (db *DB) InitDB() error {
 
 	_, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS Users
-		(ID INTEGER PRIMARY KEY,
+		(
+		 ID INTEGER PRIMARY KEY,
 		 PublicKey VARCHAR(100),
-		 SecretKey VARCHAR(100))`)
+		 SecretKey VARCHAR(100)
+		)`)
 
 	if err != nil {
 		return err
 	}
 	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS images
-		(ID INTEGER PRIMARY KEY,
+	CREATE TABLE IF NOT EXISTS Images
+		(
+		 ID INTEGER PRIMARY KEY,
 		 Key VARCHAR(20),
 		 UserID INTEGER,
 		 URL VARCHAR(50),
@@ -59,7 +62,37 @@ func (db *DB) InitDB() error {
 		 ApproveDate DATETIME,
 		 TransformsUploadDate DATETIME,
 
-		 FOREIGN KEY(UserID) REFERENCES Users(ID))`)
+		 FOREIGN KEY(UserID) REFERENCES Users(ID)
+		)`)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS Transformations
+		(
+		 ID INTEGER PRIMARY KEY,
+		 Name VARCHAR(30),
+		 Tag VARCHAR(20),
+		 Type VARCHAR(10),
+		 Quality INTEGER,
+		 Width INTEGER,
+		 Height INTEGER
+		)`)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS ImageTags
+		(
+		 ImageID INTEGER,
+		 Tag VARCHAR(20),
+		 
+		 FOREIGN KEY(ImageID) REFERENCES Images(ID)
+		)`)
 	return err
 }
 
@@ -79,7 +112,7 @@ func (db *DB) DropDB() error {
 func (tx *Tx) CreateImage(key string, userID int32) (int64, error) {
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO images(Key, UserID, CreateDate)
+		INSERT INTO Images(Key, UserID, CreateDate)
 			VALUES (?, ?, DATETIME('now', 'localtime') )`)
 
 	if err != nil {
