@@ -19,10 +19,9 @@ import (
 )
 
 const (
-	MaxImageSize                = 5 * 1024 * 1024 // bytes
-	HighCompressionQuality      = 30
-	LowCompressionQuality       = 15
-	TransformationsExchangeName = "transformations_xc"
+	MaxImageSize           = 5 * 1024 * 1024 // bytes
+	HighCompressionQuality = 30
+	LowCompressionQuality  = 15
 )
 
 type AppContext struct {
