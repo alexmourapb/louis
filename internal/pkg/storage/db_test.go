@@ -3,6 +3,7 @@ package storage
 import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
 	// "os"
 	"testing"
 )
@@ -44,9 +45,7 @@ func TestCreateImage(t *testing.T) {
 	err = tx.Commit()
 	failIfError(t, err, "failed to create image")
 
-	if id != 1 {
-		t.Fatalf("expected 1 but get %v", id)
-	}
+	assert.Equal(t, int64(1), id)
 
 	rows, err := db.Query("SELECT ID, UserID, Key FROM Images WHERE key='test_image_key'")
 	defer rows.Close()
@@ -63,16 +62,10 @@ func TestCreateImage(t *testing.T) {
 	} else {
 		t.Fatalf("image not saved")
 	}
-	if rowID != 1 {
-		t.Fatalf("expected image id 1 bug get %v", rowID)
-	}
-	if key != "test_image_key" {
-		t.Fatalf("expected image key 'test_image_key' bug get %v", key)
-	}
 
-	if userID != 1 {
-		t.Fatalf("expected userID = 1 but get %v", userID)
-	}
+	assert.Equal(t, 1, rowID, "imageID should be 1")
+	assert.Equal(t, "test_image_key", key)
+	assert.Equal(t, 1, userID)
 }
 
 func TestClaimImage(t *testing.T) {
@@ -151,16 +144,57 @@ func TestSetImageURL(t *testing.T) {
 	rows, err := db.Query("SELECT URL FROM Images WHERE key=?", imageKey)
 	defer rows.Close()
 
-	var URL string
+	var urlFromDatabase string
 
 	if rows.Next() {
-		failIfError(t, rows.Scan(&URL), "failed to scan URL column")
+		failIfError(t, rows.Scan(&urlFromDatabase), "failed to scan URL column")
 	} else {
 		t.Fatalf("image with key %s not found", imageKey)
 	}
 
-	if URL != imageURL {
-		t.Fatalf("expected URL = true but get %v", URL)
+	assert.Equal(t, imageURL, urlFromDatabase)
+
+}
+
+func TestAddImageTags(t *testing.T) {
+	var db, err = getDB()
+	defer db.DropDB()
+
+	failIfError(t, err, "failed to open db")
+
+	failIfError(t, db.InitDB(), "failed to create tables")
+
+	tx, err := db.Begin()
+	failIfError(t, err, "failed to create createImage transaction")
+
+	var (
+		imageKey = "imageKey"
+		userID   = int32(2)
+		tags     = []string{"tag1", "tag2", "super-tag"}
+	)
+
+	imageID, err := tx.CreateImage(imageKey, userID)
+	failIfError(t, err, "failed to create image")
+	failIfError(t, tx.Commit(), "failed to commit create image tx")
+
+	tx, err = db.Begin()
+	failIfError(t, err, "failed to create add image tags transaction")
+	failIfError(t, tx.AddImageTags(imageID, tags), "failed to add tags")
+	failIfError(t, tx.Commit(), "failed to commit add image tags tx")
+
+	rows, err := db.Query("SELECT Tag FROM ImageTags WHERE ImageID=?", imageID)
+	defer rows.Close()
+
+	failIfError(t, err, "failed to obtain rows")
+
+	var recivedTags = make([]string, len(tags))
+	if rows.Next() {
+		failIfError(t, rows.Scan(&recivedTags[0]), "failed to scan")
+		rows.Next()
+		failIfError(t, rows.Scan(&recivedTags[1]), "failed to scan")
+		rows.Next()
+		failIfError(t, rows.Scan(&recivedTags[2]), "failed to scan")
 	}
 
+	assert.ElementsMatch(t, recivedTags, tags)
 }

@@ -16,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 const (
@@ -93,6 +94,23 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
+		tagsStr := r.FormValue("tags")
+		var tags []string
+		if tagsStr != "" {
+			if !appCtx.TransformationsEnabled {
+				log.Printf("WARN: transformations disabled. ignoring recived tags")
+			} else {
+
+				tags = strings.Split(tagsStr, ",")
+				for _, tag := range tags {
+					if len(tag) > storage.TagLength {
+						respondWithJson(w, fmt.Sprintf("tag should not be longer than %v", storage.TagLength), nil, http.StatusBadRequest)
+						return
+					}
+				}
+			}
+		}
+
 		defer file.Close()
 		var buffer bytes.Buffer
 		io.Copy(&buffer, file)
@@ -111,37 +129,14 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 		var imageData ImageData
 		imageData.Key = xid.New().String()
 
-		tx, err := appCtx.DB.Begin()
-		if failOnError(w, err, "error on creating transaction", http.StatusInternalServerError) {
-			return
-		}
-
-		_, err = tx.CreateImage(imageData.Key, userID)
-		if failOnError(w, err, "error on executing transaction", http.StatusInternalServerError) {
-			return
-		}
-
-		if failOnError(w, tx.Commit(), "error on committing create img transaction", http.StatusInternalServerError) {
-			return
-		}
+		failOnError(w, createImage(appCtx, imageData.Key, userID, tags), "error on creating db record", http.StatusInternalServerError)
 
 		output, err := storage.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
 		if failOnError(w, err, "failed to upload compressed img", http.StatusInternalServerError) {
 			return
 		}
 
-		tx, err = appCtx.DB.Begin()
-		if failOnError(w, err, "error on creating transaction", http.StatusInternalServerError) {
-			return
-		}
-
-		if failOnError(w, tx.SetImageURL(imageData.Key, userID, output.Location), "error on executing transaction", http.StatusInternalServerError) {
-			return
-		}
-
-		if failOnError(w, tx.Commit(), "error on committing set img URL transaction", http.StatusInternalServerError) {
-			return
-		}
+		failOnError(w, setImageURL(appCtx, imageData.Key, output.Location, userID), "failed to set image url", http.StatusInternalServerError)
 
 		imageData.URL = output.Location
 		respondWithJson(w, "", imageData, 200)
@@ -229,6 +224,51 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 	})
 }
 
+func setImageURL(appCtx *AppContext, imageKey, url string, userID int32) error {
+	tx, err := appCtx.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("error on creating transaction - %v", err)
+	}
+
+	err = tx.SetImageURL(imageKey, userID, url)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func createImage(appCtx *AppContext, imageKey string, userID int32, tags []string) error {
+	tx, err := appCtx.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("failed creating transaction: %v", err)
+	}
+
+	imageID, err := tx.CreateImage(imageKey, userID)
+	if err != nil {
+		return fmt.Errorf("failed executing transaction: %v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed committing create img transaction: %v", err)
+	}
+
+	if tags != nil {
+		tx, err = appCtx.DB.Begin()
+		if err != nil {
+			return fmt.Errorf("failed creating transaction: %v", err)
+		}
+
+		err = tx.AddImageTags(imageID, tags)
+		if err != nil {
+			return fmt.Errorf("failed executing transaction: %v", err)
+		}
+		return tx.Commit()
+	}
+	return nil
+}
+
 func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
 
 	body, err := json.Marshal(*image)
@@ -278,14 +318,14 @@ func respondWithJson(w http.ResponseWriter, err string, payload interface{}, cod
 	return herr
 }
 
-func authorizeByPublicKey(publicKey string) (error, int32) {
+func authorizeByPublicKey(publicKey string) (err error, userID int32) {
 	if publicKey == os.Getenv("LOUIS_PUBLIC_KEY") {
 		return nil, 1
 	}
 	return fmt.Errorf("account not found"), -1
 }
 
-func authorizeBySecretKey(publicKey string) (error, int32) {
+func authorizeBySecretKey(publicKey string) (err error, userID int32) {
 	if publicKey == os.Getenv("LOUIS_SECRET_KEY") {
 		return nil, 1
 	}

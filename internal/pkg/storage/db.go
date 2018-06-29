@@ -5,7 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	//"github.com/mattn/go-sqlite3"
+)
+
+const (
+	TagLength = 20
 )
 
 type DB struct {
@@ -69,30 +74,30 @@ func (db *DB) InitDB() error {
 		return err
 	}
 
-	_, err = db.Exec(`
+	_, err = db.Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS Transformations
 		(
 		 ID INTEGER PRIMARY KEY,
 		 Name VARCHAR(30),
-		 Tag VARCHAR(20),
+		 Tag VARCHAR(%v),
 		 Type VARCHAR(10),
 		 Quality INTEGER,
 		 Width INTEGER,
 		 Height INTEGER
-		)`)
+		)`, TagLength))
 
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec(`
+	_, err = db.Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS ImageTags
 		(
 		 ImageID INTEGER,
-		 Tag VARCHAR(20),
+		 Tag VARCHAR(%v),
 		 
 		 FOREIGN KEY(ImageID) REFERENCES Images(ID)
-		)`)
+		)`, TagLength))
 	return err
 }
 
@@ -123,6 +128,27 @@ func (tx *Tx) CreateImage(key string, userID int32) (int64, error) {
 		return -1, err
 	}
 	return res.LastInsertId()
+}
+
+func (tx *Tx) AddImageTags(imageID int64, tags []string) error {
+	query := "INSERT INTO ImageTags(ImageID, Tag) VALUES "
+	params := make([]string, len(tags))
+	args := make([]interface{}, len(tags)*2)
+
+	for i, tag := range tags {
+		params[i] = "(?, ?)"
+		args[i*2] = imageID
+		args[i*2+1] = tag
+	}
+	query += strings.Join(params, ",")
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(args...)
+	return err
 }
 
 func (tx *Tx) updateImage(query string, args ...interface{}) error {

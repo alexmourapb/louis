@@ -7,6 +7,7 @@ import (
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
 	"mime/multipart"
@@ -42,9 +43,8 @@ func TestUploadAuthorization(test *testing.T) {
 	failIfError(test, err, "failed to get app ctx")
 
 	UploadHandler(appCtx)(response, request)
-	if response.Code != http.StatusUnauthorized {
-		test.Fatalf("Response code was %v; want 401", response.Code)
-	}
+
+	assert.Equal(test, http.StatusUnauthorized, response.Code, "should respond with 401")
 }
 
 func TestClaimAuthorization(test *testing.T) {
@@ -60,12 +60,13 @@ func TestClaimAuthorization(test *testing.T) {
 
 	response := httptest.NewRecorder()
 	ClaimHandler(appCtx)(response, request)
-	if response.Code != http.StatusUnauthorized {
-		test.Fatalf("Response code was %v; want 401", response.Code)
-	}
+
+	assert.Equal(test, http.StatusUnauthorized, response.Code, "should respond with 401")
 }
 
 func TestUpload(test *testing.T) {
+
+	assert := assert.New(test)
 	godotenv.Load("../../../.env")
 
 	path, _ := os.Getwd()
@@ -82,16 +83,13 @@ func TestUpload(test *testing.T) {
 
 	response := httptest.NewRecorder()
 	UploadHandler(appCtx)(response, request)
-	if response.Code != http.StatusOK {
-		test.Fatalf("Response code was %v; want 200", response.Code)
-	}
+
+	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
 	var resp ResponseTemplate
 	failIfError(test, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
-	if resp.Error != "" {
-		test.Fatalf("expected response error to be empty but get - %s", resp.Error)
-	}
+	assert.Empty(resp.Error, "expected response error to be empty")
 
 	var payload = resp.Payload.(map[string]interface{})
 
@@ -105,20 +103,60 @@ func TestUpload(test *testing.T) {
 	rows, err := appCtx.DB.Query("SELECT URL FROM Images WHERE key=?", imageKey)
 	defer rows.Close()
 
-	var URL string
+	var urlFromDB string
 
 	if rows.Next() {
-		failIfError(test, rows.Scan(&URL), "failed to scan URL column")
+		failIfError(test, rows.Scan(&urlFromDB), "failed to scan URL column")
 	} else {
 		test.Fatalf("image with key %s not found", imageKey)
 	}
 
-	if URL != url {
-		test.Fatalf("expected URL = true but get %v", URL)
+	assert.Equal(url, urlFromDB, "url from response and in database should be the same")
+
+}
+
+func TestUploadWithTags(t *testing.T) {
+	assert := assert.New(t)
+
+	godotenv.Load("../../../.env")
+
+	path, _ := os.Getwd()
+	path = filepath.Join(path, "../../../test/data/picture.jpg")
+	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": "tag1,tag2,super-tag"}, "file", path)
+	failIfError(t, err, "failed to create file upload request")
+
+	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+
+	appCtx, err := getAppContext()
+	defer appCtx.DropAll()
+
+	failIfError(t, err, "failed to get app ctx")
+
+	response := httptest.NewRecorder()
+	UploadHandler(appCtx)(response, request)
+
+	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
+
+	var resp ResponseTemplate
+	failIfError(t, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
+
+	assert.Empty(resp.Error, "expected response error to be empty")
+
+	rows, err := appCtx.DB.Query("SELECT COUNT(*) FROM ImageTags")
+	failIfError(t, err, "failed to execute query")
+
+	var cnt int
+	if rows.Next() {
+		failIfError(t, rows.Scan(&cnt), "failed to scan")
+		assert.Equal(3, cnt)
+	} else {
+		t.Fatal("query returning nothing")
 	}
+
 }
 
 func TestClaim(t *testing.T) {
+	assert := assert.New(t)
 	godotenv.Load("../../../.env")
 
 	appCtx, err := getAppContext()
@@ -137,16 +175,13 @@ func TestClaim(t *testing.T) {
 
 	response := httptest.NewRecorder()
 	UploadHandler(appCtx)(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("Response code was %v; want 200", response.Code)
-	}
+
+	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
 	var resp ResponseTemplate
 	failIfError(t, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
-	if resp.Error != "" {
-		t.Fatalf("expected response error to be empty but get - %s", resp.Error)
-	}
+	assert.Empty(resp.Error, "expected response error to be empty")
 
 	var payload = resp.Payload.(map[string]interface{})
 
@@ -161,9 +196,7 @@ func TestClaim(t *testing.T) {
 	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))
 	ClaimHandler(appCtx)(response, request)
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected claim response code 200 bug get %v", response.Code)
-	}
+	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
 	ensureDatabaseStateAfterClaim(t, appCtx, imageKey)
 
@@ -173,9 +206,8 @@ func TestClaim(t *testing.T) {
 		tasks, err := server.GetBroker().GetPendingTasks(queue.QueueName)
 
 		failIfError(t, err, "failed to get pending tasks")
-		if len(tasks) != 1 {
-			t.Fatalf("expected to have 1 task but get %v", len(tasks))
-		}
+
+		assert.Equal(1, len(tasks), "there should be 1 task")
 
 		taskArg := tasks[0].Args[0]
 
@@ -183,13 +215,9 @@ func TestClaim(t *testing.T) {
 		var img ImageData
 		failIfError(t, json.Unmarshal(data, &img), "failed to unmarshal recieved bytes")
 
-		if img.Key != imageKey {
-			t.Fatalf("job task is invalid: expected %v but get %v", imageKey, img.Key)
-		}
+		assert.Equal(imageKey, img.Key)
+		assert.Equal(imageURL, img.URL)
 
-		if img.URL != imageURL {
-			t.Fatalf("job task is invalid: expected %v but get %v", imageURL, img.URL)
-		}
 	}
 	// testing if
 	// TODO: add more checks(database, rabbitmq, etc)

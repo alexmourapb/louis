@@ -17,6 +17,7 @@ func TestUploadFile(t *testing.T) {
 	}
 
 	_, err := UploadFile(f, "test/picture.jpg")
+
 	if err != nil {
 		t.Fatalf("failed to upload image: %v", err)
 	}
