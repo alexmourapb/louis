@@ -164,25 +164,25 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		var image ImageData
-		err = json.Unmarshal(body, &image)
+		var img ImageData
+		err = json.Unmarshal(body, &img)
 		if err != nil {
 			log.Printf("ERROR: error on object deserialization - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
 
-		image.URL = getURLByImageKey(image.Key)
+		img.URL = getURLByImageKey(img.Key)
 
 		if appCtx.TransformationsEnabled {
-			if failOnError(w, passImageToAMQP(appCtx, &image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
+			if failOnError(w, passImageToAMQP(appCtx, &img), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
 				return
 			}
 		}
 		var buffer = bytes.Buffer{}
-		err = downloadFile(image.URL, &buffer)
+		err = downloadFile(img.URL, &buffer)
 		if err != nil {
-			log.Printf("ERROR: error on downloading image with key '"+image.Key+"' - %v", err)
+			log.Printf("ERROR: error on downloading image with key '"+img.Key+"' - %v", err)
 			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
@@ -202,7 +202,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		lowImageKey := image.Key + "_low"
+		lowImageKey := img.Key + "_low"
 
 		// TODO: Remove the following testing of how low image is saved to S3
 		output, err := storage.UploadFile(bytes.NewReader(lowBuffer.Bytes()), lowImageKey+".jpg")
@@ -215,7 +215,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		if failOnError(w, tx.ClaimImage(image.Key, userID), "failed to claim image", http.StatusInternalServerError) {
+		if failOnError(w, tx.ClaimImage(img.Key, userID), "failed to claim image", http.StatusInternalServerError) {
 			return
 		}
 
@@ -242,8 +242,8 @@ func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
 
 func getURLByImageKey(key string) string {
 	// TODO: maybe it's better to get URL from database?
-	// at least, it will be usefull when we will have
-	// separete buckets for each user
+	// at least, it will be useful when we will have
+	// separate buckets for each user
 	return os.Getenv("S3_BUCKET_ENDPOINT") + key + ".jpg"
 }
 
