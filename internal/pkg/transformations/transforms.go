@@ -36,3 +36,14 @@ func Fit(buffer []byte, side, quality int) ([]byte, error) {
 		})
 	}
 }
+
+// Fill - fills image to given width & height
+func Fill(buffer []byte, width, height, quality int) ([]byte, error) {
+	var img = bimg.NewImage(buffer)
+	return img.Process(bimg.Options{
+		Width:   width,
+		Height:  height,
+		Enlarge: true,
+		Embed:   true,
+	})
+}
