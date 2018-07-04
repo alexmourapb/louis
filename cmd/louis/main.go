@@ -27,7 +27,7 @@ func main() {
 		appCtx.TransformationsEnabled = true
 		appCtx.Queue, err = queue.NewMachineryQueue(os.Getenv("REDIS_CONNECTION"))
 		if err != nil {
-			log.Fatalf("ERROR: failed to connect to RabbitMQ instance - %v", err)
+			log.Fatalf("FATAL: failed to connect to RabbitMQ instance - %v", err)
 		}
 	}
 
@@ -37,7 +37,7 @@ func main() {
 
 	if *initdb {
 		if err = appCtx.DB.InitDB(); err != nil {
-			log.Fatalf("ERROR: failed to init db - %v", err)
+			log.Fatalf("FATAL: failed to init db - %v", err)
 		}
 	}
 
