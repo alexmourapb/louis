@@ -89,12 +89,7 @@ func TestClaimImage(t *testing.T) {
 
 	failIfError(t, tx.Commit(), "failed to commit create image transaction")
 
-	tx, err = db.Begin()
-	failIfError(t, err, "failed to create claim transaction")
-
-	failIfError(t, tx.ClaimImage(imageKey, userID), "failed to claim image")
-
-	failIfError(t, tx.Commit(), "failed to commit claim image transaction")
+	failIfError(t, db.SetClaimImage(imageKey, userID), "failed to create claim transaction")
 
 	rows, err := db.Query("SELECT Approved FROM Images WHERE key=?", imageKey)
 	defer rows.Close()
@@ -197,4 +192,113 @@ func TestAddImageTags(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, recivedTags, tags)
+}
+
+func TestAddImage(t *testing.T) {
+	t.Run("without tags", getAddImageTest("this_is_image_key", 1))
+	t.Run("without tags", getAddImageTest("this_is_image_key", 1, "this-is-tag", "tag2", "super-tag"))
+}
+
+func getAddImageTest(key string, userID int32, tags ...string) func(*testing.T) {
+	return func(t *testing.T) {
+		var db, err = getDB()
+		defer db.DropDB()
+
+		failIfError(t, err, "failed to open db")
+
+		failIfError(t, db.InitDB(), "failed to create tables")
+
+		imageID, err := db.AddImage(key, userID, tags...)
+
+		assert.Equal(t, int64(1), imageID, "imageID should be 1")
+
+		rows, err := db.Query("SELECT ID, UserID, Key FROM Images WHERE key=?", key)
+		defer rows.Close()
+
+		failIfError(t, err, "failed to find created row")
+
+		var (
+			imgIDFromDB  int64
+			userIDFromDB int32
+			keyFromDB    string
+		)
+		if rows.Next() {
+			failIfError(t, rows.Scan(&imgIDFromDB, &userIDFromDB, &keyFromDB), "failed to read rowID, userID, key")
+		} else {
+			t.Fatalf("image not saved")
+		}
+
+		assert.Equal(t, imageID, imgIDFromDB)
+		assert.Equal(t, key, keyFromDB)
+		assert.Equal(t, userID, userIDFromDB)
+
+		if len(tags) > 0 {
+			rows.Close()
+			rows, err := db.Query("SELECT Tag FROM ImageTags WHERE ImageID=?", imageID)
+			// defer rows.Close()
+
+			failIfError(t, err, "failed to obtain rows")
+
+			var recivedTags []string
+			var tag string
+			for rows.Next() {
+				failIfError(t, rows.Scan(&tag), "failed to scan")
+				recivedTags = append(recivedTags, tag)
+			}
+
+			assert.ElementsMatch(t, recivedTags, tags)
+		}
+	}
+}
+
+func TestGetTransformations(t *testing.T) {
+	assert := assert.New(t)
+
+	var db, err = getDB()
+	defer db.DropDB()
+
+	failIfError(t, err, "failed to open db")
+
+	failIfError(t, db.InitDB(), "failed to create tables")
+
+	const (
+		imgKey       = "img_key"
+		userID int32 = 1
+	)
+	var tags = []string{"thubnail_small_low"}
+
+	imgID, err := db.AddImage(imgKey, userID, tags...)
+	assert.NoError(err)
+
+	trans, err := db.GetTransformations(imgID)
+	assert.NoError(err)
+
+	assert.Equal(1, len(trans))
+}
+
+func TestQueryImageByKey(t *testing.T) {
+	assert := assert.New(t)
+
+	var db, err = getDB()
+	defer db.DropDB()
+
+	failIfError(t, err, "failed to open db")
+
+	failIfError(t, db.InitDB(), "failed to create tables")
+
+	const (
+		imgKey       = "img_key"
+		userID int32 = 1
+	)
+
+	imgID, err := db.AddImage(imgKey, userID)
+
+	assert.NoError(err)
+
+	img, err := db.QueryImageByKey(imgKey)
+
+	assert.NoError(err)
+	assert.Equal(imgID, img.ID)
+	assert.Equal(userID, img.UserID)
+
 }

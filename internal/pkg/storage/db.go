@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	//"github.com/mattn/go-sqlite3"
 )
 
@@ -15,6 +16,7 @@ const (
 
 type DB struct {
 	*sql.DB
+	mutex          *sync.Mutex
 	driver         string
 	dataSourceName string
 }
@@ -25,11 +27,11 @@ type Tx struct {
 // Open returns a DB reference for a data source.
 func Open(dataSourceName string) (*DB, error) {
 	db, err := sql.Open("sqlite3", dataSourceName)
-
+	db.SetMaxOpenConns(1)
 	if err != nil {
 		return nil, err
 	}
-	return &DB{db, "sqlite3", dataSourceName}, nil
+	return &DB{db, new(sync.Mutex), "sqlite3", dataSourceName}, nil
 }
 
 // Begin starts an returns a new transaction.
@@ -39,6 +41,14 @@ func (db *DB) Begin() (*Tx, error) {
 		return nil, err
 	}
 	return &Tx{tx}, nil
+}
+
+func (db *DB) Lock() {
+	db.mutex.Lock()
+}
+
+func (db *DB) Unlock() {
+	db.mutex.Unlock()
 }
 
 func (db *DB) InitDB() error {
@@ -60,12 +70,12 @@ func (db *DB) InitDB() error {
 		 ID INTEGER PRIMARY KEY,
 		 Key VARCHAR(20),
 		 UserID INTEGER,
-		 URL VARCHAR(50),
-		 Approved BOOLEAN,
-		 TransformsUploaded BOOLEAN,
-		 CreateDate DATETIME,
-		 ApproveDate DATETIME,
-		 TransformsUploadDate DATETIME,
+		 URL VARCHAR(50) DEFAULT '' NOT NULL,
+		 Approved BOOLEAN DEFAULT FALSE,
+		 TransformsUploaded BOOLEAN DEFAULT FALSE,
+		 CreateDate DATETIME DEFAULT current_timestamp,
+		 ApproveDate DATETIME DEFAULT current_timestamp,
+		 TransformsUploadDate DATETIME DEFAULT current_timestamp,
 
 		 FOREIGN KEY(UserID) REFERENCES Users(ID)
 		)`)
@@ -98,6 +108,14 @@ func (db *DB) InitDB() error {
 		 
 		 FOREIGN KEY(ImageID) REFERENCES Images(ID)
 		)`, TagLength))
+	if err != nil {
+		return err
+	}
+	// add default transformations
+	db.Exec(`
+		INSERT INTO Transformations(Name, Tag, Type, Quality, Width, Height)
+		VALUES ('thubnail_100x100_20', 'thubnail_small_low', 'fit', 20, 100, 100)`)
+
 	return err
 }
 
@@ -149,6 +167,130 @@ func (tx *Tx) AddImageTags(imageID int64, tags []string) error {
 
 	_, err = stmt.Exec(args...)
 	return err
+}
+
+func (db *DB) QueryImageByKey(key string) (*Image, error) {
+
+	// tx, err := db.Begin()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	rows, err := db.Query(`
+		SELECT ID, Key, UserID, URL, Approved, TransformsUploaded, CreateDate, ApproveDate, TransformsUploadDate
+		FROM Images
+		WHERE Key=?`, key)
+	defer rows.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !rows.Next() {
+		return nil, fmt.Errorf("image not found")
+	}
+	img := new(Image)
+	return img, rows.Scan(&img.ID, &img.Key, &img.UserID, &img.URL, &img.Approved, &img.TransformsUploaded, &img.CreateDate, &img.ApproveDate, &img.TransformsUploadDate)
+}
+
+func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {
+	db.Lock()
+	defer db.Unlock()
+	ImageID = -1
+	tx, err := db.Begin()
+	if err != nil {
+		return
+	}
+
+	ImageID, err = tx.CreateImage(imageKey, userID)
+	if err != nil {
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return
+	}
+
+	if tags != nil && len(tags) > 0 {
+		tx, err = db.Begin()
+		if err != nil {
+			return
+		}
+
+		err = tx.AddImageTags(ImageID, tags)
+		if err != nil {
+			return
+		}
+		err = tx.Commit()
+	}
+	return
+}
+
+func (db *DB) GetTransformations(imageID int64) ([]Transformation, error) {
+	// tx, err := db.Begin()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	rows, err := db.Query(`
+		SELECT t.Name, t.Tag, t.Type, t.Quality, t.Width, t.Height
+		FROM Transformations t, ImageTags it
+		WHERE it.ImageID = ? AND it.Tag = t.Tag`, imageID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trans []Transformation
+
+	for rows.Next() {
+		tr := Transformation{}
+		err := rows.Scan(&tr.Name, &tr.Tag, &tr.Type, &tr.Quality, &tr.Width, &tr.Height)
+		if err != nil {
+			return nil, err
+		}
+
+		trans = append(trans, tr)
+	}
+	return trans, nil
+}
+
+func (db *DB) SetTransformsUploaded(imgID int64) error {
+	db.Lock()
+	defer db.Unlock()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	err = tx.updateImage(`
+		UPDATE Images
+		SET TransformsUploaded=true,
+			TransformsUploadDate=DATETIME('now', 'localtime')
+		WHERE ID=?`, imgID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (db *DB) SetClaimImage(imageKey string, userID int32) error {
+	db.Lock()
+	defer db.Unlock()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	err = tx.ClaimImage(imageKey, userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (tx *Tx) updateImage(query string, args ...interface{}) error {
