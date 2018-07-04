@@ -9,7 +9,7 @@ import (
 )
 
 // UploadFile - uploads the file with objectKey key
-func UploadFile(file io.Reader, objectKey string) (*s3manager.UploadOutput, error) {
+func UploadFile(file io.Reader, objectKey string) (string, error) {
 
 	sess := session.Must(session.NewSession(&aws.Config{
 		Endpoint: aws.String(os.Getenv("S3_ENDPOINT")),
@@ -25,5 +25,5 @@ func UploadFile(file io.Reader, objectKey string) (*s3manager.UploadOutput, erro
 		ContentType: aws.String("image/jpeg"),
 	})
 
-	return out, err
+	return out.Location, err
 }
