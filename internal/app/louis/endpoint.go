@@ -170,13 +170,13 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		img, err := appCtx.DB.QueryImageByKey(image.Key)
+		image, err := appCtx.DB.QueryImageByKey(img.Key)
 		if failOnError(w, err, "failed to get image by key", http.StatusInternalServerError) {
 			return
 		}
 
 		if appCtx.TransformationsEnabled {
-			if failOnError(w, addImageTransformsTasksToQueue(appCtx, img), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
+			if failOnError(w, addImageTransformsTasksToQueue(appCtx, image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
 				return
 			}
 		}
