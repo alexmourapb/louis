@@ -7,6 +7,7 @@ import (
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
@@ -143,6 +144,7 @@ func TestUploadWithTags(t *testing.T) {
 	assert.Empty(resp.Error, "expected response error to be empty")
 
 	rows, err := appCtx.DB.Query("SELECT COUNT(*) FROM ImageTags")
+	defer rows.Close()
 	failIfError(t, err, "failed to execute query")
 
 	var cnt int
@@ -156,6 +158,7 @@ func TestUploadWithTags(t *testing.T) {
 }
 
 func TestClaim(t *testing.T) {
+	gomega.RegisterTestingT(t)
 	assert := assert.New(t)
 	godotenv.Load("../../../.env")
 
@@ -167,7 +170,7 @@ func TestClaim(t *testing.T) {
 	// Upload request
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
-	request, err := newFileUploadRequest("http://localhost:8000/upload", nil, "file", path)
+	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": "thubnail_small_low"}, "file", path)
 
 	failIfError(t, err, "failed to create file upload request")
 
@@ -185,7 +188,7 @@ func TestClaim(t *testing.T) {
 
 	var payload = resp.Payload.(map[string]interface{})
 
-	imageURL := payload["url"].(string)
+	// imageURL := payload["url"].(string)
 	imageKey := payload["key"].(string)
 
 	// Claim response testing
@@ -194,6 +197,7 @@ func TestClaim(t *testing.T) {
 
 	failIfError(t, err, "failed to create claim request")
 	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))
+
 	ClaimHandler(appCtx)(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
@@ -202,24 +206,15 @@ func TestClaim(t *testing.T) {
 
 	if appCtx.TransformationsEnabled {
 
-		server := appCtx.Queue.(*queue.MachineryQueue).MachineryServer
-		tasks, err := server.GetBroker().GetPendingTasks(queue.QueueName)
-
-		failIfError(t, err, "failed to get pending tasks")
-
-		assert.Equal(1, len(tasks), "there should be 1 task")
-
-		taskArg := tasks[0].Args[0]
-
-		data := []byte(taskArg.Value.(string))
-		var img ImageData
-		failIfError(t, json.Unmarshal(data, &img), "failed to unmarshal recieved bytes")
-
-		assert.Equal(imageKey, img.Key)
-		assert.Equal(imageURL, img.URL)
-
+		gomega.Eventually(func() bool {
+			img, err := appCtx.DB.QueryImageByKey(imageKey)
+			if err != nil {
+				return false
+			}
+			return img.TransformsUploaded
+		}).Should(gomega.BeTrue())
 	}
-	// testing if
+
 	// TODO: add more checks(database, rabbitmq, etc)
 }
 
@@ -229,6 +224,7 @@ func ensureDatabaseStateAfterClaim(t *testing.T, appCtx *AppContext, imageKey st
 	rows, err := appCtx.DB.Query("SELECT Approved FROM Images WHERE key=?", imageKey)
 	failIfError(t, err, "failed to execute sql query")
 
+	defer rows.Close()
 	var approved bool
 	if rows.Next() {
 		failIfError(t, rows.Scan(&approved), "failed to scan 'approved' value")

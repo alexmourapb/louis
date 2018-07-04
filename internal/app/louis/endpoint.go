@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/RichardKnop/machinery/v1/backends/result"
 	"github.com/go-redis/redis"
 	"github.com/rs/xid"
 	"image"
@@ -17,6 +18,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -129,16 +132,17 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 		var imageData ImageData
 		imageData.Key = xid.New().String()
 
-		failOnError(w, createImage(appCtx, imageData.Key, userID, tags), "error on creating db record", http.StatusInternalServerError)
+		_, err = appCtx.DB.AddImage(imageData.Key, userID, tags...)
+		failOnError(w, err, "error on creating db record", http.StatusInternalServerError)
 
-		output, err := storage.UploadFile(bytes.NewReader(buffer.Bytes()), imageData.Key+".jpg")
+		imageURL, err := storage.UploadFile(bytes.NewReader(buffer.Bytes()), "originals/"+imageData.Key+".jpg")
 		if failOnError(w, err, "failed to upload compressed img", http.StatusInternalServerError) {
 			return
 		}
 
-		failOnError(w, setImageURL(appCtx, imageData.Key, output.Location, userID), "failed to set image url", http.StatusInternalServerError)
+		failOnError(w, setImageURL(appCtx, imageData.Key, imageURL, userID), "failed to set image url", http.StatusInternalServerError)
 
-		imageData.URL = output.Location
+		imageData.URL = imageURL
 		respondWithJson(w, "", imageData, 200)
 	})
 }
@@ -166,60 +170,24 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		img.URL = getURLByImageKey(img.Key)
+		img, err := appCtx.DB.QueryImageByKey(image.Key)
+		if failOnError(w, err, "failed to get image by key", http.StatusInternalServerError) {
+			return
+		}
 
 		if appCtx.TransformationsEnabled {
-			if failOnError(w, passImageToAMQP(appCtx, &img), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
+			if failOnError(w, addImageTransformsTasksToQueue(appCtx, img), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
 				return
 			}
 		}
-		var buffer = bytes.Buffer{}
-		err = downloadFile(img.URL, &buffer)
-		if err != nil {
-			log.Printf("ERROR: error on downloading image with key '"+img.Key+"' - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
-			return
-		}
 
-		imageHigh, err := jpeg.Decode(bytes.NewReader(buffer.Bytes()))
-		if err != nil {
-			log.Printf("ERROR: error on decoding an image with original resolution in claim method - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusInternalServerError)
-			return
-		}
-
-		var lowBuffer bytes.Buffer
-		err = jpeg.Encode(&lowBuffer, imageHigh, &jpeg.Options{Quality: LowCompressionQuality})
-		if err != nil {
-			log.Printf("ERROR: error on compressing an image in claim method - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
-			return
-		}
-
-		lowImageKey := img.Key + "_low"
-
-		// TODO: Remove the following testing of how low image is saved to S3
-		output, err := storage.UploadFile(bytes.NewReader(lowBuffer.Bytes()), lowImageKey+".jpg")
-		if failOnError(w, err, "failed to upload compressed image with low quality", http.StatusInternalServerError) {
-			return
-		}
-
-		tx, err := appCtx.DB.Begin()
-		if failOnError(w, err, "failed to create transaction for claiming image", http.StatusInternalServerError) {
-			return
-		}
-
-		if failOnError(w, tx.ClaimImage(img.Key, userID), "failed to claim image", http.StatusInternalServerError) {
-			return
-		}
-
-		if failOnError(w, tx.Commit(), "failed to commit claiming image", http.StatusInternalServerError) {
+		if failOnError(w, appCtx.DB.SetClaimImage(image.Key, userID), "failed to claim image", http.StatusInternalServerError) {
 			return
 		}
 
 		var imageData ImageData
-		imageData.Key = lowImageKey
-		imageData.URL = output.Location
+		// imageData.Key = lowImageKey
+		// imageData.URL = output.Location
 		respondWithJson(w, "", imageData, 200)
 	})
 }
@@ -238,66 +206,64 @@ func setImageURL(appCtx *AppContext, imageKey, url string, userID int32) error {
 	return tx.Commit()
 }
 
-func createImage(appCtx *AppContext, imageKey string, userID int32, tags []string) error {
-	tx, err := appCtx.DB.Begin()
+func addImageTransformsTasksToQueue(appCtx *AppContext, image *storage.Image) error {
+
+	// select transformations by image
+	trans, err := appCtx.DB.GetTransformations(image.ID)
 	if err != nil {
-		return fmt.Errorf("failed creating transaction: %v", err)
+		return err
 	}
 
-	imageID, err := tx.CreateImage(imageKey, userID)
-	if err != nil {
-		return fmt.Errorf("failed executing transaction: %v", err)
-	}
+	var wg sync.WaitGroup
+	var aresults []*result.AsyncResult
 
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("failed committing create img transaction: %v", err)
+	for _, tran := range trans {
+		switch tran.Type {
+		case "fit":
+			aresult, err := appCtx.Queue.PublishFitTransform(queue.NewTransformData(image, &tran))
+			if err != nil {
+				log.Printf("ERROR: failed to enqueue transform fit task: %v", err)
+				return err
+			}
+			wg.Add(1)
+			aresults = append(aresults, aresult)
+			break
+		}
 	}
+	var ers = make(chan error, len(trans)+1)
+	go func() {
+		for _, ares := range aresults {
+			go func() {
+				_, err = ares.Get(time.Duration(time.Millisecond * 200))
+				if err != nil {
+					ers <- err
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		noErr := fmt.Errorf("no error")
+		ers <- noErr
+		close(ers)
 
-	if tags != nil {
-		tx, err = appCtx.DB.Begin()
-		if err != nil {
-			return fmt.Errorf("failed creating transaction: %v", err)
+		hasErrors := false
+		for err := range ers {
+
+			if err != noErr {
+				log.Printf("WARN: failed to perform transform task - %v", err)
+				hasErrors = true
+			}
+		}
+		if hasErrors {
+			return
 		}
 
-		err = tx.AddImageTags(imageID, tags)
+		err := appCtx.DB.SetTransformsUploaded(image.ID)
 		if err != nil {
-			return fmt.Errorf("failed executing transaction: %v", err)
+			// it may fail because connection to db may be closed
+			log.Printf("WARN: failed to set transforms uploaded for image %v : %v", image.ID, err)
 		}
-		return tx.Commit()
-	}
-	return nil
-}
-
-func passImageToAMQP(appCtx *AppContext, image *ImageData) error {
-
-	body, err := json.Marshal(*image)
-	if err != nil {
-		return err
-	}
-
-	return appCtx.Queue.Publish(body)
-}
-
-func getURLByImageKey(key string) string {
-	// TODO: maybe it's better to get URL from database?
-	// at least, it will be useful when we will have
-	// separate buckets for each user
-	return os.Getenv("S3_BUCKET_ENDPOINT") + key + ".jpg"
-}
-
-func downloadFile(url string, w io.Writer) error {
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		return err
-	}
+	}()
 
 	return nil
 }
