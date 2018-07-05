@@ -26,6 +26,25 @@ const (
 	redisConnection = "redis://127.0.0.1:6379"
 )
 
+var tlist = []storage.Transformation{
+	{
+		Name:    "super_transform",
+		Tag:     "thubnail_small_low",
+		Width:   100,
+		Height:  100,
+		Quality: 40,
+		Type:    "fit",
+	},
+	{
+		Name:    "cover",
+		Tag:     "cover_wide",
+		Type:    "fill",
+		Width:   1200,
+		Height:  200,
+		Quality: 70,
+	},
+}
+
 func TestUploadAuthorization(test *testing.T) {
 
 	godotenv.Load("../../../.env")
@@ -164,6 +183,7 @@ func TestClaim(t *testing.T) {
 
 	appCtx, err := getAppContext()
 	defer appCtx.DropAll()
+	assert.NoError(appCtx.DB.EnsureTransformations(tlist))
 
 	failIfError(t, err, "failed to get app ctx")
 

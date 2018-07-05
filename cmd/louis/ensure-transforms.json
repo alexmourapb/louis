@@ -1,0 +1,12 @@
+{
+    "transformations": [
+        {
+            "name": "super_transform",
+            "tag": "tag1",
+            "width": 200,
+            "height": 200,
+            "quality": 50,
+            "type": "fit"
+        }
+    ]
+}

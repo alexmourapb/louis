@@ -16,12 +16,17 @@ type Image struct {
 }
 
 // Transformation - is model of how transforamiotn stored in DB
+// json mappings needed to read initial config from file
 type Transformation struct {
-	ID      int32
-	Name    string
-	Tag     string
-	Type    string
-	Quality int32
-	Width   int32
-	Height  int32
+	ID      int32  `json:"-"`
+	Name    string `json:"name"`
+	Tag     string `json:"tag"`
+	Type    string `json:"type"`
+	Quality int32  `json:"quality"`
+	Width   int32  `json:"width"`
+	Height  int32  `json:"height"`
+}
+
+type TransformList struct {
+	Transformations []Transformation `json:"transformations"`
 }

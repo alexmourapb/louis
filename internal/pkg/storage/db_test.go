@@ -10,6 +10,25 @@ import (
 
 var pathToTestDB = "../../../test/data/test.db"
 
+var tlist = []Transformation{
+	{
+		Name:    "super_transform",
+		Tag:     "thubnail_small_low",
+		Width:   100,
+		Height:  100,
+		Quality: 40,
+		Type:    "fit",
+	},
+	{
+		Name:    "cover",
+		Tag:     "cover_wide",
+		Type:    "fill",
+		Width:   1200,
+		Height:  200,
+		Quality: 70,
+	},
+}
+
 func getDB() (*DB, error) {
 	return Open(pathToTestDB)
 }
@@ -261,6 +280,7 @@ func TestGetTransformations(t *testing.T) {
 
 	failIfError(t, db.InitDB(), "failed to create tables")
 
+	assert.NoError(db.EnsureTransformations(tlist))
 	const (
 		imgKey       = "img_key"
 		userID int32 = 1

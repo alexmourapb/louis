@@ -93,7 +93,10 @@ func (db *DB) InitDB() error {
 		 Type VARCHAR(10),
 		 Quality INTEGER,
 		 Width INTEGER,
-		 Height INTEGER
+		 Height INTEGER,
+		 -- UserID INTEGER, -- will be needed in future
+
+		 UNIQUE(Name)
 		)`, TagLength))
 
 	if err != nil {
@@ -112,10 +115,22 @@ func (db *DB) InitDB() error {
 		return err
 	}
 	// add default transformations
-	db.Exec(`
-		INSERT INTO Transformations(Name, Tag, Type, Quality, Width, Height)
-		VALUES ('thubnail_100x100_20', 'thubnail_small_low', 'fit', 20, 100, 100)`)
+	// db.Exec(`
+	// INSERT INTO Transformations(Name, Tag, Type, Quality, Width, Height)
+	// VALUES ('thubnail_100x100_20', 'thubnail_small_low', 'fit', 20, 100, 100)`)
 
+	return err
+}
+
+func (db *DB) EnsureTransformations(trans []Transformation) error {
+	query := "INSERT OR IGNORE INTO Transformations(Name, Tag, Type, Quality, Width, Height) VALUES "
+	var args []interface{}
+
+	query += strings.Repeat("(?, ?, ?, ?, ?, ?), ", len(trans)-1) + "(?, ?, ?, ?, ?, ?)"
+	for _, tran := range trans {
+		args = append(args, tran.Name, tran.Tag, tran.Type, tran.Quality, tran.Width, tran.Height)
+	}
+	_, err := db.Exec(query, args...)
 	return err
 }
 
