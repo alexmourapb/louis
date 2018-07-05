@@ -171,11 +171,6 @@ func (tx *Tx) AddImageTags(imageID int64, tags []string) error {
 
 func (db *DB) QueryImageByKey(key string) (*Image, error) {
 
-	// tx, err := db.Begin()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	rows, err := db.Query(`
 		SELECT ID, Key, UserID, URL, Approved, TransformsUploaded, CreateDate, ApproveDate, TransformsUploadDate
 		FROM Images
@@ -228,11 +223,6 @@ func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID i
 }
 
 func (db *DB) GetTransformations(imageID int64) ([]Transformation, error) {
-	// tx, err := db.Begin()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	rows, err := db.Query(`
 		SELECT t.Name, t.Tag, t.Type, t.Quality, t.Width, t.Height
 		FROM Transformations t, ImageTags it
