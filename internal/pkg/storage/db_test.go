@@ -296,6 +296,38 @@ func TestGetTransformations(t *testing.T) {
 	assert.Equal(1, len(trans))
 }
 
+func TestEnsureTransformations(t *testing.T) {
+	assert := assert.New(t)
+
+	var db, err = getDB()
+	defer db.DropDB()
+
+	failIfError(t, err, "failed to open db")
+
+	failIfError(t, db.InitDB(), "failed to create tables")
+
+	assert.NoError(db.EnsureTransformations(tlist))
+
+	rows, err := db.Query("SELECT COUNT(*) FROM Transformations")
+	defer rows.Close()
+	assert.NoError(err)
+
+	rows.Next()
+	var tCnt int
+	assert.NoError(rows.Scan(&tCnt))
+	rows.Close()
+
+	assert.Equal(len(tlist), tCnt)
+	assert.NoError(db.EnsureTransformations(tlist))
+
+	rows, err = db.Query("SELECT COUNT(*) FROM Transformations")
+
+	rows.Next()
+	assert.NoError(rows.Scan(&tCnt))
+	assert.Equal(len(tlist), tCnt)
+
+}
+
 func TestQueryImageByKey(t *testing.T) {
 	assert := assert.New(t)
 
