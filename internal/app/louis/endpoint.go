@@ -218,17 +218,22 @@ func addImageTransformsTasksToQueue(appCtx *AppContext, image *storage.Image) er
 	var aresults []*result.AsyncResult
 
 	for _, tran := range trans {
+		var aresult *result.AsyncResult
 		switch tran.Type {
 		case "fit":
-			aresult, err := appCtx.Queue.PublishFitTransform(queue.NewTransformData(image, &tran))
-			if err != nil {
-				log.Printf("ERROR: failed to enqueue transform fit task: %v", err)
-				return err
-			}
-			wg.Add(1)
-			aresults = append(aresults, aresult)
+			aresult, err = appCtx.Queue.PublishFitTransform(queue.NewTransformData(image, &tran))
+
 			break
+		case "fill":
+			aresult, err = appCtx.Queue.PublishFillTransform(queue.NewTransformData(image, &tran))
 		}
+
+		if err != nil {
+			log.Printf("ERROR: failed to enqueue transform fit task: %v", err)
+			return err
+		}
+		wg.Add(1)
+		aresults = append(aresults, aresult)
 	}
 	var ers = make(chan error, len(trans)+1)
 	go func() {

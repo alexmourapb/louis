@@ -22,7 +22,6 @@ type TransformData struct {
 	Quality     int
 	ImageKey    string
 	ImageURL    string
-	Name        string
 	S3Directory string
 }
 
@@ -39,6 +38,7 @@ func NewTransformData(img *storage.Image, tran *storage.Transformation) Transfor
 
 type JobQueue interface {
 	PublishFitTransform(td TransformData) (*result.AsyncResult, error)
+	PublishFillTransform(td TransformData) (*result.AsyncResult, error)
 }
 
 type MachineryQueue struct {
@@ -55,6 +55,7 @@ func NewMachineryQueue(redisURL string) (*MachineryQueue, error) {
 
 	server, err := machinery.NewServer(cnf)
 	err = server.RegisterTask("fit", fitTransform)
+	err = server.RegisterTask("fill", fillTransform)
 	worker := server.NewWorker("transforms", 10)
 	go worker.Launch()
 	return &MachineryQueue{server}, err
@@ -76,8 +77,9 @@ func downloadFile(url string, w io.Writer) error {
 	return nil
 }
 
-func fitTransform(byteJson string) error {
-	bs := []byte(byteJson)
+func fitTransform(byteJSON string) error {
+	// TODO: optimize downloading of images
+	bs := []byte(byteJSON)
 	var dt TransformData
 	err := json.Unmarshal(bs, &dt)
 	if err != nil {
@@ -100,6 +102,51 @@ func fitTransform(byteJson string) error {
 	return err
 }
 
+func fillTransform(byteJSON string) error {
+	// TODO: optimize downloading of images
+	bs := []byte(byteJSON)
+	var dt TransformData
+	err := json.Unmarshal(bs, &dt)
+	if err != nil {
+		return err
+	}
+
+	var buffer = bytes.Buffer{}
+	err = downloadFile(dt.ImageURL, &buffer)
+	if err != nil {
+		return err
+	}
+
+	result, err := transformations.Fill(buffer.Bytes(), dt.Width, dt.Height, dt.Quality)
+	if err != nil {
+		return err
+	}
+
+	_, err = storage.UploadFile(bytes.NewReader(result), path.Join(dt.S3Directory, dt.ImageKey+".jpg"))
+
+	return err
+}
+
+// PublishFillTransform - adds Fill task into queue
+func (mq *MachineryQueue) PublishFillTransform(td TransformData) (*result.AsyncResult, error) {
+
+	jsonBytes, err := json.Marshal(td)
+	if err != nil {
+		return nil, err
+	}
+	task := &tasks.Signature{
+		Name: "fill",
+		Args: []tasks.Arg{
+			{
+				Type:  "string",
+				Value: string(jsonBytes),
+			},
+		},
+	}
+	return mq.MachineryServer.SendTask(task)
+}
+
+// PublishFitTransform - adds fit task into queue
 func (mq *MachineryQueue) PublishFitTransform(td TransformData) (*result.AsyncResult, error) {
 
 	jsonBytes, err := json.Marshal(td)
