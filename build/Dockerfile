@@ -55,14 +55,14 @@ WORKDIR $GOPATH
 COPY . $GOPATH/src/github.com/KazanExpress/louis
 # RUN go get ./...
 RUN \
-  go get gopkg.in/h2non/bimg.v1 && \ 
-  go get github.com/mattn/go-sqlite3 && \
-  go get github.com/aws/aws-sdk-go && \
-  go get github.com/joho/godotenv && \
-  go get github.com/onsi/gomega && \
-  go get github.com/stretchr/testify && \
-  go get github.com/RichardKnop/machinery && \
-  go get github.com/lib/pq 
+  go get -u gopkg.in/h2non/bimg.v1 && \ 
+  go get -u github.com/mattn/go-sqlite3 && \
+  go get -u github.com/aws/aws-sdk-go && \
+  go get -u github.com/joho/godotenv && \
+  go get -u github.com/onsi/gomega && \
+  go get -u github.com/stretchr/testify && \
+  go get -u github.com/RichardKnop/machinery && \
+  go get -u github.com/lib/pq 
 
 RUN go build -o bin/louis github.com/KazanExpress/louis/cmd/louis
 
