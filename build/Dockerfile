@@ -62,7 +62,8 @@ RUN \
   go get github.com/onsi/gomega && \
   go get github.com/stretchr/testify && \
   go get github.com/RichardKnop/machinery/v1 && \
-  go get github.com/lib/pq 
+  go get github.com/lib/pq && \
+  go get github.com/go-redis/redis
 
 RUN go build -o bin/louis github.com/KazanExpress/louis/cmd/louis
 
