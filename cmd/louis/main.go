@@ -13,20 +13,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 )
 
 func main() {
-	err := godotenv.Load()
+	envPath := flag.String("env", ".env", "path to file with environment variables")
+	transformsPath := flag.String("transforms-path", "ensure-transforms.json", "path to file containing JSON transforms to ensure")
+	initdb := flag.Bool("initdb", true, "if true then non-existing database tables will be created")
+	flag.Parse()
+
+	err := godotenv.Load(*envPath)
 	if err != nil {
 		log.Printf("INFO: .env file not found using real env variables")
 	}
 
 	appCtx := &louis.AppContext{}
-
 	appCtx.DB, err = storage.Open(os.Getenv("DATA_SOURCE_NAME"))
-	initdb := flag.Bool("initdb", true, "if true then non-existing database tables will be created")
-	flag.Parse()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if *initdb {
 		if err = appCtx.DB.InitDB(); err != nil {
@@ -42,7 +48,7 @@ func main() {
 			log.Fatalf("FATAL: failed to connect to redis instance - %v", err)
 		}
 
-		jsonBytes, err := ioutil.ReadFile("ensure-transforms.json")
+		jsonBytes, err := ioutil.ReadFile(*transformsPath)
 		if err != nil {
 			log.Fatalf("FATAL: failed to read ensure-transforms.json - %v", err)
 		}
@@ -55,16 +61,25 @@ func main() {
 		appCtx.DB.EnsureTransformations(tlist.Transformations)
 	}
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	// Register http handlers and start listening
 	router := mux.NewRouter()
 	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
 	router.Handle("/upload", louis.UploadHandler(appCtx)).Methods("POST")
 	router.HandleFunc("/claim", louis.ClaimHandler(appCtx)).Methods("POST")
+
+	// registering SIGTERM handling
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			log.Printf("WARNING: Signal recieved: %s. Stoping...", sig.String())
+			appCtx.DB.Lock()
+			appCtx.DB.Close()
+
+			os.Exit(2)
+		}
+	}()
+
 	log.Fatal(http.ListenAndServe(":8000", router))
 
-	// testS3()
-	// now do something with s3 or whatever
 }
