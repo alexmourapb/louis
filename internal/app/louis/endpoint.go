@@ -10,7 +10,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/rs/xid"
 	"image"
-	"image/jpeg"
+	_ "image/jpeg"
 	_ "image/png"
 	"io"
 	"io/ioutil"
@@ -75,7 +75,7 @@ func failOnError(w http.ResponseWriter, err error, logMessage string, code int) 
 		if logMessage != "" {
 			log.Printf("ERROR: %s - %v", logMessage, err)
 		}
-		respondWithJson(w, err.Error(), nil, code)
+		respondWithJSON(w, err.Error(), nil, code)
 		return true
 	}
 	return false
@@ -84,9 +84,9 @@ func failOnError(w http.ResponseWriter, err error, logMessage string, code int) 
 func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		err, userID := authorizeByPublicKey(r.Header.Get("Authorization"))
+		userID, err := authorizeByPublicKey(r.Header.Get("Authorization"))
 		if err != nil {
-			respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
+			respondWithJSON(w, err.Error(), nil, http.StatusUnauthorized)
 			return
 		}
 
@@ -107,7 +107,7 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 				tags = strings.Split(tagsStr, ",")
 				for _, tag := range tags {
 					if len(tag) > storage.TagLength {
-						respondWithJson(w, fmt.Sprintf("tag should not be longer than %v", storage.TagLength), nil, http.StatusBadRequest)
+						respondWithJSON(w, fmt.Sprintf("tag should not be longer than %v", storage.TagLength), nil, http.StatusBadRequest)
 						return
 					}
 				}
@@ -118,14 +118,8 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 		var buffer bytes.Buffer
 		io.Copy(&buffer, file)
 
-		img, _, err := image.Decode(bytes.NewReader(buffer.Bytes()))
+		_, _, err = image.Decode(bytes.NewReader(buffer.Bytes()))
 		if failOnError(w, err, "error on creating an Image object from bytes", http.StatusBadRequest) {
-			return
-		}
-
-		buffer = bytes.Buffer{}
-		err = jpeg.Encode(&buffer, img, &jpeg.Options{Quality: HighCompressionQuality})
-		if failOnError(w, err, "error on compressing an img", http.StatusBadRequest) {
 			return
 		}
 
@@ -143,22 +137,22 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 		failOnError(w, setImageURL(appCtx, imageData.Key, imageURL, userID), "failed to set image url", http.StatusInternalServerError)
 
 		imageData.URL = imageURL
-		respondWithJson(w, "", imageData, 200)
+		respondWithJSON(w, "", imageData, 200)
 	})
 }
 
 func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err, userID := authorizeBySecretKey(r.Header.Get("Authorization"))
+		userID, err := authorizeBySecretKey(r.Header.Get("Authorization"))
 		if err != nil {
-			respondWithJson(w, err.Error(), nil, http.StatusUnauthorized)
+			respondWithJSON(w, err.Error(), nil, http.StatusUnauthorized)
 			return
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("ERROR: error on reading request body - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			respondWithJSON(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
 
@@ -166,7 +160,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 		err = json.Unmarshal(body, &img)
 		if err != nil {
 			log.Printf("ERROR: error on object deserialization - %v", err)
-			respondWithJson(w, err.Error(), nil, http.StatusBadRequest)
+			respondWithJSON(w, err.Error(), nil, http.StatusBadRequest)
 			return
 		}
 
@@ -185,10 +179,7 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		var imageData ImageData
-		// imageData.Key = lowImageKey
-		// imageData.URL = output.Location
-		respondWithJson(w, "", imageData, 200)
+		respondWithJSON(w, "", "ok", 200)
 	})
 }
 
@@ -238,13 +229,13 @@ func addImageTransformsTasksToQueue(appCtx *AppContext, image *storage.Image) er
 	var ers = make(chan error, len(trans)+1)
 	go func() {
 		for _, ares := range aresults {
-			go func() {
-				_, err = ares.Get(time.Duration(time.Millisecond * 200))
+			go func(ar *result.AsyncResult) {
+				_, err = ar.Get(time.Duration(time.Millisecond * 200))
 				if err != nil {
 					ers <- err
 				}
 				wg.Done()
-			}()
+			}(ares)
 		}
 		wg.Wait()
 		noErr := fmt.Errorf("no error")
@@ -273,7 +264,7 @@ func addImageTransformsTasksToQueue(appCtx *AppContext, image *storage.Image) er
 	return nil
 }
 
-func respondWithJson(w http.ResponseWriter, err string, payload interface{}, code int) error {
+func respondWithJSON(w http.ResponseWriter, err string, payload interface{}, code int) error {
 	response := ResponseTemplate{Error: err, Payload: payload}
 	jsonResponse, merror := json.Marshal(response)
 	w.Header().Set("Content-Type", "application/json")
@@ -289,16 +280,16 @@ func respondWithJson(w http.ResponseWriter, err string, payload interface{}, cod
 	return herr
 }
 
-func authorizeByPublicKey(publicKey string) (err error, userID int32) {
+func authorizeByPublicKey(publicKey string) (userID int32, err error) {
 	if publicKey == os.Getenv("LOUIS_PUBLIC_KEY") {
-		return nil, 1
+		return 1, nil
 	}
-	return fmt.Errorf("account not found"), -1
+	return -1, fmt.Errorf("account not found")
 }
 
-func authorizeBySecretKey(publicKey string) (err error, userID int32) {
+func authorizeBySecretKey(publicKey string) (userID int32, err error) {
 	if publicKey == os.Getenv("LOUIS_SECRET_KEY") {
-		return nil, 1
+		return 1, nil
 	}
-	return fmt.Errorf("account not found"), -1
+	return -1, fmt.Errorf("account not found")
 }
