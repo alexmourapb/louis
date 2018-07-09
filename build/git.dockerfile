@@ -96,8 +96,9 @@ COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 # Server port to listen
 # unused
 ENV PORT 8000 
-RUN mkdir /configs
-COPY ./cmd/louis/ensure-transforms.json /configs/ensure-transforms.json
+RUN mkdir /configs 
+RUN echo '{"transformations":[{"name":"super_transform","tag":"tag1","width":200,"height":200,"quality":50,"type":"fit"}]}' > /configs/ensure-transforms.json
+
 # Run the entrypoint command by default when the container starts.
 CMD ["bin/louis", "--env=/configs/.env" ,"--transforms-path=/configs/ensure-transforms.json"]
 # Expose the server TCP port
