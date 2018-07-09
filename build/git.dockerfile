@@ -52,7 +52,9 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 WORKDIR $GOPATH
 
-COPY . $GOPATH/src/github.com/KazanExpress/louis
+RUN \
+  mkdir -p $GOPATH/src/github.com/KazanExpress/louis && \
+  git clone https://github.com/KazanExpress/louis.git $GOPATH/src/github.com/KazanExpress/louis
 # RUN go get ./...
 RUN \
   go get gopkg.in/h2non/bimg.v1 && \ 
