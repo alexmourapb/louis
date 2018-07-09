@@ -6,13 +6,25 @@
 Service for uploading images to any S3 compatible storage.
 
 
-
 ## Command line arguments
 
 ```bash
 ./louis --env=<default: .env | path to file with environment variables> \
         --transforms-path=<default: ensure-transforms.json | path to file containing json description of transforms> \
         --initdb=<default: true | ensure needed tables in database>
+```
+
+## Using with docker
+
+```bash
+docker run kexpress/louis
+```
+
+### Use volumes to store sqlite db
+
+```bash
+docker run -e DATA_SOURCE_NAME=/data/db.sqlite -v /my-safe/path/to/sqlite-dir:/data kexpress/louis
+
 ```
 
 ## Environment variables
