@@ -66,7 +66,8 @@ RUN \
   go get github.com/RichardKnop/machinery/v1 && \
   go get github.com/lib/pq && \
   go get github.com/go-redis/redis && \
-  go get github.com/gorilla/mux
+  go get github.com/gorilla/mux && \
+  go get github.com/rs/xid
 
 RUN go build -o bin/louis github.com/KazanExpress/louis/cmd/louis
 
