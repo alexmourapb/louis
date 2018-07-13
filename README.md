@@ -63,7 +63,7 @@ Response:
 
 ## Command line arguments
 
-```bash
+```
 ./louis --env=<default: .env | path to file with environment variables> \
         --transforms-path=<default: ensure-transforms.json | path to file containing json description of transforms> \
         --initdb=<default: true | ensure needed tables in database>
@@ -84,7 +84,7 @@ docker run -e DATA_SOURCE_NAME=/data/db.sqlite -v /my-safe/path/to/sqlite-dir:/d
 
 ## Environment variables
 
-```bash
+```env
 S3_BUCKET=<name of S3 bucket>
 S3_ENDPOINT=<url to S3 api server; if not set used AWS endpoint by default>
 AWS_REGION=<region where s3 is stored>
@@ -99,7 +99,7 @@ TRANSFORMATIONS_ENABLED=<true/false; if true then claimed images will be transfo
 
 Example:
 
-```bash
+```env
 S3_BUCKET=my-bucket-name
 S3_ENDPOINT=https://hb.bizmrg.com
 AWS_REGION=ru-msk
