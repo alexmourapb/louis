@@ -25,7 +25,7 @@ func main() {
 
 	err := godotenv.Load(*envPath)
 	if err != nil {
-		log.Printf("INFO: .env file not found using real env variables")
+		log.Printf("INFO: failed to read env file: %v", err)
 	}
 
 	appCtx := &louis.AppContext{}
@@ -66,7 +66,7 @@ func main() {
 	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
 	router.Handle("/upload", louis.UploadHandler(appCtx)).Methods("POST")
 	router.HandleFunc("/claim", louis.ClaimHandler(appCtx)).Methods("POST")
-
+	router.HandleFunc("/healthz", louis.GetHealth(appCtx)).Methods("GET")
 	// registering SIGTERM handling
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

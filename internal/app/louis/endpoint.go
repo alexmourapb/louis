@@ -70,6 +70,15 @@ func GetDashboard(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, here is your dashboard")
 }
 
+func GetHealth(appCtx *AppContext) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		health := GetHealthStats()
+		body, _ := json.Marshal(health)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(body)
+	})
+}
+
 func failOnError(w http.ResponseWriter, err error, logMessage string, code int) (failed bool) {
 	if err != nil {
 		if logMessage != "" {
