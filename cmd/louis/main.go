@@ -6,10 +6,10 @@ import (
 	"github.com/KazanExpress/louis/internal/app/louis"
 	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/cors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -88,6 +88,11 @@ func main() {
 		}
 	}()
 
-	log.Fatal(http.ListenAndServe(":8000", addAcessControlAllowOriginHeader(handlers.CORS()((router)))))
+	crs := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},                      // All origins
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"}, // Allowing only get, just an example
+	})
+
+	log.Fatal(http.ListenAndServe(":8000", addAcessControlAllowOriginHeader(crs.Handler(router))))
 
 }
