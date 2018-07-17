@@ -55,19 +55,7 @@ WORKDIR $GOPATH
 RUN \
   mkdir -p $GOPATH/src/github.com/KazanExpress/louis && \
   git clone https://github.com/KazanExpress/louis.git $GOPATH/src/github.com/KazanExpress/louis
-# RUN go get ./...
-RUN \
-  go get gopkg.in/h2non/bimg.v1 && \ 
-  go get github.com/mattn/go-sqlite3 && \
-  go get github.com/aws/aws-sdk-go && \
-  go get github.com/joho/godotenv && \
-  go get github.com/onsi/gomega && \
-  go get github.com/stretchr/testify && \
-  go get github.com/RichardKnop/machinery/v1 && \
-  go get github.com/lib/pq && \
-  go get github.com/go-redis/redis && \
-  go get github.com/gorilla/mux && \
-  go get github.com/rs/xid
+RUN go get ./...
 
 RUN go build -o bin/louis github.com/KazanExpress/louis/cmd/louis
 
