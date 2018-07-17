@@ -21,6 +21,7 @@ import (
 func addAcessControlAllowOriginHeader(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Add("Access-Control-Allow-Headers", "Authorization,Content-Type")
 		next.ServeHTTP(w, r)
 	})
 }
