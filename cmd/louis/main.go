@@ -18,6 +18,13 @@ import (
 	"strings"
 )
 
+func addAcessControlAllowOriginHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	envPath := flag.String("env", ".env", "path to file with environment variables")
 	transformsPath := flag.String("transforms-path", "ensure-transforms.json", "path to file containing JSON transforms to ensure")
@@ -81,13 +88,6 @@ func main() {
 		}
 	}()
 
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
-	originsOk := handlers.AllowedOrigins([]string{"*"})
-	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
-
-	// start server listen
-	// with error handling
-	log.Fatal(http.ListenAndServe(":8000", handlers.CORS(originsOk, headersOk, methodsOk)(router)))
-	log.Fatal(http.ListenAndServe(":8000", router))
+	log.Fatal(http.ListenAndServe(":8000", addAcessControlAllowOriginHeader(handlers.CORS()((router)))))
 
 }
