@@ -106,7 +106,7 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		tagsStr := r.FormValue("tags")
+		tagsStr := strings.Replace(r.FormValue("tags"), " ", "", -1)
 		var tags []string
 		if tagsStr != "" {
 			if !appCtx.TransformationsEnabled {
