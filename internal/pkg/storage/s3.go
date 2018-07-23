@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -17,6 +18,26 @@ func UploadFile(file io.Reader, objectKey string) (string, error) {
 
 	manager := s3manager.NewUploader(sess)
 	out, err := manager.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Body:   file,
+		Key:    aws.String(objectKey),
+		ACL:    aws.String("public-read"),
+		// We assume that image is already converted to jpg
+		ContentType: aws.String("image/jpeg"),
+	})
+
+	return out.Location, err
+}
+
+// UploadFile - uploads the file with objectKey key
+func UploadFileWithContext(ctx context.Context, file io.Reader, objectKey string) (string, error) {
+
+	sess := session.Must(session.NewSession(&aws.Config{
+		Endpoint: aws.String(os.Getenv("S3_ENDPOINT")),
+	}))
+
+	manager := s3manager.NewUploader(sess)
+	out, err := manager.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket: aws.String(os.Getenv("S3_BUCKET")),
 		Body:   file,
 		Key:    aws.String(objectKey),
