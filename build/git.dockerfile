@@ -1,61 +1,10 @@
-FROM ubuntu:16.04 as builder
+FROM kexpress/louis-core-img:0.2 as builder
 MAINTAINER Alik Khilazhev <alikhil@mail.ru>
-
-ENV LIBVIPS_VERSION 8.6.3
-
-RUN \
-  # Install dependencies
-  apt-get update && \
-  DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  automake build-essential curl \
-  gobject-introspection gtk-doc-tools libglib2.0-dev libjpeg-turbo8-dev libpng12-dev \
-  libwebp-dev libtiff5-dev libgif-dev libexif-dev libxml2-dev libpoppler-glib-dev \
-  swig libmagickwand-dev libpango1.0-dev libmatio-dev libopenslide-dev libcfitsio3-dev \
-  libgsf-1-dev fftw3-dev liborc-0.4-dev librsvg2-dev && \
-  # Build libvips
-  cd /tmp && \
-  curl -OL https://github.com/jcupitt/libvips/releases/download/v${LIBVIPS_VERSION}/vips-${LIBVIPS_VERSION}.tar.gz && \
-  tar zvxf vips-$LIBVIPS_VERSION.tar.gz && \
-  cd /tmp/vips-$LIBVIPS_VERSION && \
-  ./configure --enable-debug=no --without-python $1 && \
-  make && \
-  make install && \
-  ldconfig && \
-  # Clean up
-  apt-get remove -y curl automake build-essential && \
-  apt-get autoremove -y && \
-  apt-get autoclean && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Go version to use
-ENV GOLANG_VERSION 1.10
-
-
-# gcc for cgo
-RUN apt-get update && apt-get install -y \
-    gcc curl git libc6-dev make \
-    --no-install-recommends \
-  && rm -rf /var/lib/apt/lists/*
-
-ENV GOLANG_DOWNLOAD_URL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz
-ENV GOLANG_DOWNLOAD_SHA256 b5a64335f1490277b585832d1f6c7f8c6c11206cba5cd3f771dcb87b98ad1a33
-
-RUN curl -fsSL --insecure "$GOLANG_DOWNLOAD_URL" -o golang.tar.gz \
-  && echo "$GOLANG_DOWNLOAD_SHA256 golang.tar.gz" | sha256sum -c - \
-  && tar -C /usr/local -xzf golang.tar.gz \
-  && rm golang.tar.gz
-
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
-
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-WORKDIR $GOPATH
 
 RUN \
   mkdir -p $GOPATH/src/github.com/KazanExpress/louis && \
   git clone https://github.com/KazanExpress/louis.git $GOPATH/src/github.com/KazanExpress/louis
-RUN go get ./...
+RUN go get -v ./...
 
 RUN go build -o bin/louis github.com/KazanExpress/louis/cmd/louis
 
