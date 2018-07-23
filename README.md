@@ -7,7 +7,7 @@ Service for uploading images to any S3 compatible storage inspired from [ospry](
 
 ## How it works
 
-The upload flow lets developers make cross-browser uploads directly to configured S3 cloud storage. When an image is successfully uploaded, Louis sends back metadata about the image. The metadata can be used immediately, or sent up to your own server for claiming. In future version, unclaimed images will be deleted. If transformations enabled and original image was passed with tags, after claiming corresponing transforms will be uploaded.
+The upload flow lets developers make cross-browser uploads directly to configured S3 cloud storage. When an image and it's transformations successfully uploaded, Louis sends back metadata about the image. The metadata can be used immediately, or sent up to your own server for claiming. In future version, unclaimed images will be deleted.
 
 ![louis](https://user-images.githubusercontent.com/7482065/42679463-b07be3d6-868a-11e8-97f9-61cb67532e28.png)
 
@@ -32,8 +32,12 @@ Response:
 {
     "error": "",
     "payload": {
-        "key": "bd35b7n03vdv2aen0",
-        "url": "https://bucketname.hb.bizmrg.com/originals/bd35b7n03vdv2aen0.jpg"
+        "key": "bdaqolfvn27g83tpe1s0",
+        "originalUrl": "https://bucketname.hb.bizmrg.com/bdaqolfvn27g83tpe1s0/original.jpg",
+        "transformations": {
+            "original": "https://bucketname.hb.bizmrg.com/bdaqolfvn27g83tpe1s0/original.jpg",
+            "super_transform": "https://bucketname.hb.bizmrg.com/bdaqolfvn27g83tpe1s0/super_transform.jpg"
+        }
     }
 }
 ```
@@ -93,8 +97,6 @@ AWS_SECRET_ACCESS_KEY=<your secret key>
 LOUIS_PUBLIC_KEY=<key used for uploading images>
 LOUIS_SECRET_KEY=<key used for claiming images>
 DATA_SOURCE_NAME=<path to sqlite db>
-REDIS_CONNECTION=<connection to redis, used if transformations enabled>
-TRANSFORMATIONS_ENABLED=<true/false; if true then claimed images will be transformed and uploaded to S3>
 ```
 
 Example:
@@ -108,8 +110,6 @@ AWS_SECRET_ACCESS_KEY=super-secret-key
 LOUIS_PUBLIC_KEY=well-known-public-key
 LOUIS_SECRET_KEY=secret-louis-key
 DATA_SOURCE_NAME=mysqlite.db
-REDIS_CONNECTION=redis://password@localhost:6379/
-TRANSFORMATIONS_ENABLED=false
 ```
 
 ## Development
