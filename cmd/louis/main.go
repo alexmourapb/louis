@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"github.com/KazanExpress/louis/internal/app/louis"
-	"github.com/KazanExpress/louis/internal/pkg/queue"
+	// "github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
+	// "strings"
 )
 
 func addAcessControlAllowOriginHeader(next http.Handler) http.Handler {
@@ -49,25 +49,19 @@ func main() {
 		}
 	}
 
-	if strings.ToLower(os.Getenv("TRANSFORMATIONS_ENABLED")) == "true" {
-		log.Printf("INFO: TRANSFORMATIONS_ENABLED flag is set to TRUE")
-		appCtx.TransformationsEnabled = true
-		appCtx.Queue, err = queue.NewMachineryQueue(os.Getenv("REDIS_CONNECTION"))
-		if err != nil {
-			log.Fatalf("FATAL: failed to connect to redis instance - %v", err)
-		}
+	jsonBytes, err := ioutil.ReadFile(*transformsPath)
+	if err != nil {
+		log.Fatalf("FATAL: failed to read ensure-transforms.json - %v", err)
+	}
+	var tlist storage.TransformList
+	err = json.Unmarshal(jsonBytes, &tlist)
+	if err != nil {
+		log.Fatalf("FATAL: failed to parse json from ensure-transforms.json - %v", err)
+	}
 
-		jsonBytes, err := ioutil.ReadFile(*transformsPath)
-		if err != nil {
-			log.Fatalf("FATAL: failed to read ensure-transforms.json - %v", err)
-		}
-		var tlist storage.TransformList
-		err = json.Unmarshal(jsonBytes, &tlist)
-		if err != nil {
-			log.Fatalf("FATAL: failed to parse json from ensure-transforms.json - %v", err)
-		}
-
-		appCtx.DB.EnsureTransformations(tlist.Transformations)
+	err = appCtx.DB.EnsureTransformations(tlist.Transformations)
+	if err != nil {
+		log.Fatalf("FATAL: failed to ensure transformations: %v", err)
 	}
 
 	// Register http handlers and start listening

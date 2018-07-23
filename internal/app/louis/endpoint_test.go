@@ -3,7 +3,9 @@ package louis
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/KazanExpress/louis/internal/pkg/queue"
+	"fmt"
+	"regexp"
+	// "github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -113,7 +115,7 @@ func TestUpload(test *testing.T) {
 
 	var payload = resp.Payload.(map[string]interface{})
 
-	url := payload["url"].(string)
+	url := payload["originalUrl"].(string)
 	imageKey := payload["key"].(string)
 
 	if !strings.HasPrefix(url, "http") || !strings.HasSuffix(url, ".jpg") {
@@ -142,7 +144,7 @@ func TestUploadWithTags(t *testing.T) {
 
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
-	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": "tag1,tag2,super-tag"}, "file", path)
+	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": " tag1 , tag2 , super-tag"}, "file", path)
 	failIfError(t, err, "failed to create file upload request")
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
@@ -162,17 +164,9 @@ func TestUploadWithTags(t *testing.T) {
 
 	assert.Empty(resp.Error, "expected response error to be empty")
 
-	rows, err := appCtx.DB.Query("SELECT COUNT(*) FROM ImageTags")
-	defer rows.Close()
-	failIfError(t, err, "failed to execute query")
+	ensureTags(t, appCtx)
 
-	var cnt int
-	if rows.Next() {
-		failIfError(t, rows.Scan(&cnt), "failed to scan")
-		assert.Equal(3, cnt)
-	} else {
-		t.Fatal("query returning nothing")
-	}
+	ensureTransformations(t, appCtx, resp)
 
 }
 
@@ -224,18 +218,48 @@ func TestClaim(t *testing.T) {
 
 	ensureDatabaseStateAfterClaim(t, appCtx, imageKey)
 
-	if appCtx.TransformationsEnabled {
+}
 
-		gomega.Eventually(func() bool {
-			img, err := appCtx.DB.QueryImageByKey(imageKey)
-			if err != nil {
-				return false
-			}
-			return img.TransformsUploaded
-		}).Should(gomega.BeTrue())
+func ensureTransformations(t *testing.T, appCtx *AppContext, resp ResponseTemplate) {
+	var payload = resp.Payload.(map[string]interface{})
+
+	imageKey := payload["key"].(string)
+	originalURL := payload["originalUrl"].(string)
+	transformations := payload["transformations"].(map[string]interface{})
+
+	img, err := appCtx.DB.QueryImageByKey(imageKey)
+	assert.NoError(t, err)
+
+	assert.Equal(t, img.URL, originalURL)
+
+	assert.True(t, img.TransformsUploaded)
+
+	trans, err := appCtx.DB.GetTransformations(img.ID)
+	assert.NoError(t, err)
+
+	for _, tran := range trans {
+		// transformations.
+		tran.Name = ""
+		matched, err := regexp.Match(fmt.Sprintf("^http(s?)\\:\\/\\/.*%s.*%s\\.jpg", imageKey, tran.Name), []byte(transformations[tran.Name].(string)))
+
+		assert.NoError(t, err)
+		assert.True(t, matched)
 	}
 
-	// TODO: add more checks(database, rabbitmq, etc)
+}
+
+func ensureTags(t *testing.T, appCtx *AppContext) {
+	rows, err := appCtx.DB.Query("SELECT COUNT(*) FROM ImageTags")
+	defer rows.Close()
+	failIfError(t, err, "failed to execute query")
+
+	var cnt int
+	if rows.Next() {
+		failIfError(t, rows.Scan(&cnt), "failed to scan")
+		assert.Equal(t, 3, cnt)
+	} else {
+		t.Fatal("query returning nothing")
+	}
 }
 
 func ensureDatabaseStateAfterClaim(t *testing.T, appCtx *AppContext, imageKey string) {
@@ -259,12 +283,7 @@ func ensureDatabaseStateAfterClaim(t *testing.T, appCtx *AppContext, imageKey st
 
 func getAppContext() (*AppContext, error) {
 	var err error
-	appCtx := &AppContext{TransformationsEnabled: true}
-	appCtx.RedisConnection = redisConnection
-
-	if appCtx.Queue, err = queue.NewMachineryQueue(redisConnection); err != nil {
-		return nil, err
-	}
+	appCtx := &AppContext{}
 
 	if appCtx.DB, err = storage.Open(pathToTestDB); err != nil {
 		return nil, err

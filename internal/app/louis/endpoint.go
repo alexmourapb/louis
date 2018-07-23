@@ -2,12 +2,14 @@ package louis
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/transformations"
 	"github.com/RichardKnop/machinery/v1/backends/result"
-	"github.com/go-redis/redis"
+	// "github.com/go-redis/redis"
 	"github.com/rs/xid"
 	"image"
 	_ "image/jpeg"
@@ -26,13 +28,13 @@ const (
 	MaxImageSize           = 5 * 1024 * 1024 // bytes
 	HighCompressionQuality = 30
 	LowCompressionQuality  = 15
+	OriginalTransformName  = "originals"
 )
 
 type AppContext struct {
-	DB                     *storage.DB
-	Queue                  queue.JobQueue
-	TransformationsEnabled bool
-	RedisConnection        string
+	DB              *storage.DB
+	Queue           queue.JobQueue
+	RedisConnection string
 }
 
 type ImageData struct {
@@ -49,20 +51,26 @@ type ResponseTemplate struct {
 	Payload interface{} `json:"payload"`
 }
 
+type UploadResponsePayload struct {
+	ImageKey        string            `json:"key"`
+	OriginalURL     string            `json:"originalUrl"`
+	Transformations map[string]string `json:"transformations"`
+}
+
 func (appCtx *AppContext) DropAll() error {
 
-	if appCtx.TransformationsEnabled {
+	// if appCtx.TransformationsEnabled {
 
-		client := redis.NewClient(&redis.Options{
-			Addr:     appCtx.RedisConnection[8:],
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		})
-		err := client.FlushAll().Err()
-		if err != nil {
-			log.Printf("WARN: failed to drop redis - %v", err)
-		}
-	}
+	// 	client := redis.NewClient(&redis.Options{
+	// 		Addr:     appCtx.RedisConnection[8:],
+	// 		Password: "", // no password set
+	// 		DB:       0,  // use default DB
+	// 	})
+	// 	err := client.FlushAll().Err()
+	// 	if err != nil {
+	// 		log.Printf("WARN: failed to drop redis - %v", err)
+	// 	}
+	// }
 	return appCtx.DB.DropDB()
 }
 
@@ -90,6 +98,97 @@ func failOnError(w http.ResponseWriter, err error, logMessage string, code int) 
 	return false
 }
 
+func makeTransformsPayload(imgKey string, transformationsURLs map[string]string) UploadResponsePayload {
+	return UploadResponsePayload{
+		ImageKey:        imgKey,
+		OriginalURL:     transformationsURLs[OriginalTransformName],
+		Transformations: transformationsURLs,
+	}
+}
+
+func makePath(transformName, imageKey string) string {
+	return fmt.Sprintf("%s/%s.jpg", imageKey, transformName)
+}
+
+func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string, buffer *[]byte) (map[string]string, error) {
+	trans, err := appCtx.DB.GetTransformations(imgID)
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	var ers = make(chan error, len(trans)+1)
+	var transformURLs = make(map[string]string)
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	wg.Add(1 + len(trans))
+	go func(ctx context.Context) {
+		defer wg.Done()
+
+		transformURLs[OriginalTransformName], err = storage.UploadFileWithContext(ctx, bytes.NewReader(*buffer), makePath(OriginalTransformName, imgKey))
+		if err != nil {
+			ers <- err
+		}
+	}(ctx)
+
+	for _, tran := range trans {
+		switch tran.Type {
+		case "fit":
+			go func(ctx context.Context) {
+
+				defer wg.Done()
+
+				result, err := transformations.Fit(*buffer, tran.Width, tran.Quality)
+				if err != nil {
+					ers <- err
+					return
+				}
+				transformURLs[tran.Name], err = storage.UploadFileWithContext(ctx, bytes.NewReader(result), makePath(tran.Name, imgKey))
+				if err != nil {
+					ers <- err
+				}
+			}(ctx)
+
+			break
+		case "fill":
+			go func(ctx context.Context) {
+				defer wg.Done()
+
+				result, err := transformations.Fill(*buffer, tran.Width, tran.Height, tran.Quality)
+				if err != nil {
+					ers <- err
+					return
+				}
+				transformURLs[tran.Name], err = storage.UploadFileWithContext(ctx, bytes.NewReader(result), makePath(tran.Name, imgKey))
+				if err != nil {
+					ers <- err
+				}
+			}(ctx)
+			break
+		default:
+			wg.Done()
+		}
+	}
+	select {
+	case er := <-ers:
+		cancelCtx()
+		log.Printf("ERROR: on parallel transnforms - %v", er)
+		return nil, er
+
+	case <-func() chan bool {
+		wg.Wait()
+		ch := make(chan bool, 1)
+		ch <- true
+		return ch
+	}():
+		err := appCtx.DB.SetTransformsUploaded(imgID)
+		if err != nil {
+			log.Printf("ERROR: failed to mark image as transformed - %v", err)
+		}
+		return transformURLs, err
+	}
+}
+
 func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -109,16 +208,12 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 		tagsStr := strings.Replace(r.FormValue("tags"), " ", "", -1)
 		var tags []string
 		if tagsStr != "" {
-			if !appCtx.TransformationsEnabled {
-				log.Printf("WARN: transformations disabled. ignoring recived tags")
-			} else {
 
-				tags = strings.Split(tagsStr, ",")
-				for _, tag := range tags {
-					if len(tag) > storage.TagLength {
-						respondWithJSON(w, fmt.Sprintf("tag should not be longer than %v", storage.TagLength), nil, http.StatusBadRequest)
-						return
-					}
+			tags = strings.Split(tagsStr, ",")
+			for _, tag := range tags {
+				if len(tag) > storage.TagLength {
+					respondWithJSON(w, fmt.Sprintf("tag should not be longer than %v", storage.TagLength), nil, http.StatusBadRequest)
+					return
 				}
 			}
 		}
@@ -126,27 +221,30 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 		defer file.Close()
 		var buffer bytes.Buffer
 		io.Copy(&buffer, file)
+		bufferBytes := buffer.Bytes()
 
-		_, _, err = image.Decode(bytes.NewReader(buffer.Bytes()))
+		_, _, err = image.Decode(bytes.NewReader(bufferBytes))
 		if failOnError(w, err, "error on creating an Image object from bytes", http.StatusBadRequest) {
 			return
 		}
 
-		var imageData ImageData
-		imageData.Key = xid.New().String()
+		imgKey := xid.New().String()
 
-		_, err = appCtx.DB.AddImage(imageData.Key, userID, tags...)
+		imgID, err := appCtx.DB.AddImage(imgKey, userID, tags...)
 		failOnError(w, err, "error on creating db record", http.StatusInternalServerError)
 
-		imageURL, err := storage.UploadFile(bytes.NewReader(buffer.Bytes()), "originals/"+imageData.Key+".jpg")
-		if failOnError(w, err, "failed to upload compressed img", http.StatusInternalServerError) {
+		transformsURLs, err := appCtx.uploadPictureAndTransforms(imgID, imgKey, &bufferBytes)
+
+		if failOnError(w, err, "failed to upload transforms", http.StatusInternalServerError) {
 			return
 		}
 
-		failOnError(w, setImageURL(appCtx, imageData.Key, imageURL, userID), "failed to set image url", http.StatusInternalServerError)
+		if failOnError(w, setImageURL(appCtx, imgKey, transformsURLs[OriginalTransformName], userID), "failed to set image url", http.StatusInternalServerError) {
+			return
+		}
 
-		imageData.URL = imageURL
-		respondWithJSON(w, "", imageData, 200)
+		// imageData.URL = imageURL
+		respondWithJSON(w, "", makeTransformsPayload(imgKey, transformsURLs), 200)
 	})
 }
 
@@ -178,11 +276,11 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		if appCtx.TransformationsEnabled {
-			if failOnError(w, addImageTransformsTasksToQueue(appCtx, image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
-				return
-			}
-		}
+		// if appCtx.TransformationsEnabled {
+		// 	if failOnError(w, addImageTransformsTasksToQueue(appCtx, image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
+		// 		return
+		// 	}
+		// }
 
 		if failOnError(w, appCtx.DB.SetClaimImage(image.Key, userID), "failed to claim image", http.StatusInternalServerError) {
 			return
@@ -206,6 +304,7 @@ func setImageURL(appCtx *AppContext, imageKey, url string, userID int32) error {
 	return tx.Commit()
 }
 
+// DEPRECATED
 func addImageTransformsTasksToQueue(appCtx *AppContext, image *storage.Image) error {
 
 	// select transformations by image
