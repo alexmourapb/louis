@@ -22,9 +22,9 @@ type Transformation struct {
 	Name    string `json:"name"`
 	Tag     string `json:"tag"`
 	Type    string `json:"type"`
-	Quality int32  `json:"quality"`
-	Width   int32  `json:"width"`
-	Height  int32  `json:"height"`
+	Quality int    `json:"quality"`
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
 }
 
 type TransformList struct {
