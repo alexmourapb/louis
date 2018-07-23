@@ -28,7 +28,7 @@ const (
 	MaxImageSize           = 5 * 1024 * 1024 // bytes
 	HighCompressionQuality = 30
 	LowCompressionQuality  = 15
-	OriginalTransformName  = "originals"
+	OriginalTransformName  = "original"
 )
 
 type AppContext struct {
