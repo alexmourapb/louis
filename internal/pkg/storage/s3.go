@@ -55,7 +55,7 @@ func getBucket() *string {
 func getSession() *session.Session {
 	return session.Must(session.NewSession(&aws.Config{
 		Endpoint: aws.String(os.Getenv("S3_ENDPOINT")),
-		LogLevel: aws.LogLevel(aws.LogDebugWithHTTPBody),
+		// LogLevel: aws.LogLevel(aws.LogDebugWithHTTPBody),
 	}))
 }
 
