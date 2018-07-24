@@ -131,10 +131,10 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 		}
 	}(ctx)
 
-	for _, tran := range trans {
-		switch tran.Type {
+	for _, tr := range trans {
+		switch tr.Type {
 		case "fit":
-			go func(ctx context.Context) {
+			go func(ctx context.Context, tran storage.Transformation) {
 
 				defer wg.Done()
 
@@ -147,11 +147,11 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 				if err != nil {
 					ers <- err
 				}
-			}(ctx)
+			}(ctx, tr)
 
 			break
 		case "fill":
-			go func(ctx context.Context) {
+			go func(ctx context.Context, tran storage.Transformation) {
 				defer wg.Done()
 
 				result, err := transformations.Fill(*buffer, tran.Width, tran.Height, tran.Quality)
@@ -163,7 +163,7 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 				if err != nil {
 					ers <- err
 				}
-			}(ctx)
+			}(ctx, tr)
 			break
 		default:
 			wg.Done()
