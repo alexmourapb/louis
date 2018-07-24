@@ -7,6 +7,72 @@
             "height": 200,
             "quality": 50,
             "type": "fit"
+        }, {
+            "name": "t_shop_cover_low",
+            "tag": "shop_cover",
+            "width": 1240,
+            "height": 200,
+            "quality": 20,
+            "type": "fill"
+        },
+        { 
+            "name": "t_product_80_high",
+            "tag": "product_image",
+            "type": "fit",
+            "width":80,
+            "height":80,
+            "quality": 100
+        },
+        { 
+            "name": "t_product_240_high",
+            "tag": "product_image",
+            "type": "fit",
+            "width":240,
+            "height":240,
+            "quality": 100
+        
+        },
+        { 
+            "name": "t_product_540_high",
+            "tag": "product_image",
+            "type": "fit",
+            "width":540,
+            "height":540,
+            "quality": 100
+        },
+        { 
+            "name": "t_product_low",
+            "tag": "product_image",
+            "type": "fit",
+            "width":800,
+            "height":800,
+            "quality": 20
+        },
+        { 
+            "name": "t_product_80_low",
+            "tag": "product_image",
+            "type": "fit",
+            "width":80,
+            "height":80,
+            "quality": 20
+        },
+        { 
+            "name": "t_product_240_low",
+            "tag": "product_image",
+            "type": "fit",
+            "width":240,
+            "height":240,
+            "quality": 20
+        },
+        { 
+            "name": "t_product_540_low",
+            "tag": "product_image",
+            "type": "fit",
+            "width":540,
+            "height":540,
+            "quality": 20
         }
     ]
 }
+
+
