@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/KazanExpress/louis/internal/app/louis"
 	"github.com/KazanExpress/louis/internal/pkg/config"
+	"time"
 	// "github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	// "github.com/gocraft/work"
@@ -30,7 +31,7 @@ func addAcessControlAllowOriginHeader(next http.Handler) http.Handler {
 func initApp(appCtx *louis.AppContext) {
 	var err error
 	appCtx.Config = config.Init()
-	appCtx.DB, err = storage.Open(appCtx.Config.DataSourceName)
+	appCtx.DB, err = storage.Open(appCtx.Config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,10 +77,21 @@ func main() {
 	go func() {
 		for sig := range c {
 			log.Printf("WARNING: Signal recieved: %s. Stoping...", sig.String())
-			appCtx.DB.Lock()
-			appCtx.DB.Close()
-
+			select {
+			case <-time.After(time.Second * 10):
+				appCtx.Pool.Stop()
+				break
+			case <-func() chan bool {
+				ch := make(chan bool, 1)
+				ch <- true
+				appCtx.Pool.Drain()
+				return ch
+			}():
+				log.Printf("INFO: worker pool drained successfully")
+				break
+			}
 			os.Exit(2)
+
 		}
 	}()
 

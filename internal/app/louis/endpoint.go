@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/KazanExpress/louis/internal/pkg/transformations"
-	// "github.com/go-redis/redis"
 	"github.com/rs/xid"
 	"image"
 	_ "image/jpeg"
@@ -166,8 +165,6 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		log.Printf("ms2: %v", appCtx)
-
 		userID, err := authorizeByPublicKey(r.Header.Get("Authorization"))
 		if err != nil {
 			respondWithJSON(w, err.Error(), nil, http.StatusUnauthorized)
@@ -224,7 +221,7 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		// imageData.URL = imageURL
+		log.Printf("INFO: image with key %v and %v transforms uploaded", imgKey, len(transformsURLs))
 		respondWithJSON(w, "", makeTransformsPayload(imgKey, transformsURLs), 200)
 	})
 }
@@ -253,34 +250,28 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 		}
 
 		image, err := appCtx.DB.QueryImageByKey(img.Key)
-		if failOnError(w, err, "failed to get image by key", http.StatusInternalServerError) {
+		if failOnError(w, err, "failed to get image by key", http.StatusBadRequest) {
 			return
 		}
 
 		if image.Deleted {
 			respondWithJSON(w, "image is deleted", "", http.StatusBadRequest)
+			log.Printf("INFO: trying to claim deleted image")
+
+			return
 		}
 
 		if failOnError(w, appCtx.DB.SetClaimImage(image.Key, userID), "failed to claim image", http.StatusInternalServerError) {
 			return
 		}
 
+		log.Printf("INFO: image with key %v claimed", img.Key)
 		respondWithJSON(w, "", "ok", 200)
 	})
 }
 
 func setImageURL(appCtx *AppContext, imageKey, url string, userID int32) error {
-	tx, err := appCtx.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("error on creating transaction - %v", err)
-	}
-
-	err = tx.SetImageURL(imageKey, userID, url)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return appCtx.DB.SetImageURL(imageKey, userID, url)
 }
 
 func respondWithJSON(w http.ResponseWriter, err string, payload interface{}, code int) error {

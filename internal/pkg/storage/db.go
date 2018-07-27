@@ -1,13 +1,10 @@
 package storage
 
 import (
-	"database/sql"
 	"fmt"
-	"log"
-	"os"
-	"strings"
-	"sync"
-	//"github.com/mattn/go-sqlite3"
+	"github.com/KazanExpress/louis/internal/pkg/config"
+	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 )
 
 const (
@@ -15,23 +12,24 @@ const (
 )
 
 type DB struct {
-	*sql.DB
-	mutex          *sync.Mutex
-	driver         string
-	dataSourceName string
+	*pg.DB
+	driver string
 }
 type Tx struct {
-	*sql.Tx
+	*pg.Tx
 }
 
 // Open returns a DB reference for a data source.
-func Open(dataSourceName string) (*DB, error) {
-	db, err := sql.Open("sqlite3", dataSourceName)
-	db.SetMaxOpenConns(1)
-	if err != nil {
-		return nil, err
-	}
-	return &DB{db, new(sync.Mutex), "sqlite3", dataSourceName}, nil
+func Open(cfg *config.Config) (*DB, error) {
+
+	db := pg.Connect(&pg.Options{
+		User:     cfg.PostgresUser,
+		Password: cfg.PostgresPassword,
+		Addr:     cfg.PostgresAddress,
+		Database: cfg.PostgresDatabase,
+	})
+
+	return &DB{db, "pg"}, nil
 }
 
 // Begin starts an returns a new transaction.
@@ -43,322 +41,124 @@ func (db *DB) Begin() (*Tx, error) {
 	return &Tx{tx}, nil
 }
 
-func (db *DB) Lock() {
-	db.mutex.Lock()
-}
-
-func (db *DB) Unlock() {
-	db.mutex.Unlock()
+var ifNotExist = &orm.CreateTableOptions{
+	IfNotExists: true,
 }
 
 func (db *DB) InitDB() error {
 
-	_, err := db.Exec(`
-	CREATE TABLE IF NOT EXISTS Users
-		(
-		 ID INTEGER PRIMARY KEY,
-		 PublicKey VARCHAR(100),
-		 SecretKey VARCHAR(100)
-		)`)
+	err := db.CreateTable(&User{}, ifNotExist)
 
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS Images
-		(
-		 ID INTEGER PRIMARY KEY,
-		 Key VARCHAR(20),
-		 UserID INTEGER,
-		 URL VARCHAR(50) DEFAULT '' NOT NULL,
-		 Approved BOOLEAN DEFAULT FALSE,
-		 Deleted BOOLEAN DEFAULT FALSE,
-		 TransformsUploaded BOOLEAN DEFAULT FALSE,
-		 CreateDate DATETIME DEFAULT current_timestamp,
-		 ApproveDate DATETIME DEFAULT current_timestamp,
-		 DeletionDate DATETIME DEFAULT current_timestamp,
-		 TransformsUploadDate DATETIME DEFAULT current_timestamp,
-
-		 FOREIGN KEY(UserID) REFERENCES Users(ID)
-		)`)
+	err = db.CreateTable(&Image{}, ifNotExist)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec(fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS Transformations
-		(
-		 ID INTEGER PRIMARY KEY,
-		 Name VARCHAR(30),
-		 Tag VARCHAR(%v),
-		 Type VARCHAR(10),
-		 Quality INTEGER,
-		 Width INTEGER,
-		 Height INTEGER,
-		 -- UserID INTEGER, -- will be needed in future
-
-		 UNIQUE(Name)
-		)`, TagLength))
+	err = db.CreateTable(&Transformation{}, ifNotExist)
 
 	if err != nil {
 		return err
 	}
-
-	_, err = db.Exec(fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS ImageTags
-		(
-		 ImageID INTEGER,
-		 Tag VARCHAR(%v),
-		 
-		 FOREIGN KEY(ImageID) REFERENCES Images(ID)
-		)`, TagLength))
-	if err != nil {
-		return err
-	}
-	// add default transformations
-	// db.Exec(`
-	// INSERT INTO Transformations(Name, Tag, Type, Quality, Width, Height)
-	// VALUES ('thubnail_100x100_20', 'thubnail_small_low', 'fit', 20, 100, 100)`)
 
 	return err
 }
 
 func (db *DB) EnsureTransformations(trans []Transformation) error {
-	query := "INSERT OR IGNORE INTO Transformations(Name, Tag, Type, Quality, Width, Height) VALUES "
-	var args []interface{}
-
-	query += strings.Repeat("(?, ?, ?, ?, ?, ?), ", len(trans)-1) + "(?, ?, ?, ?, ?, ?)"
-	for _, tran := range trans {
-		args = append(args, tran.Name, tran.Tag, tran.Type, tran.Quality, tran.Width, tran.Height)
-	}
-	_, err := db.Exec(query, args...)
+	_, err := db.Model(&trans).
+		OnConflict("(name) DO NOTHING").
+		// TODO: add update
+		Insert()
 	return err
 }
 
 func (db *DB) DropDB() error {
-	db.Close()
-	if db.driver == "sqlite3" {
-		os.Remove(db.dataSourceName)
-		return os.Remove(db.dataSourceName + "-journal")
 
+	if db.driver == "pg" {
+		opt := &orm.DropTableOptions{IfExists: true, Cascade: true}
+		err := db.DropTable(&Image{}, opt)
+		err = db.DropTable(&Transformation{}, opt)
+		err = db.DropTable(&User{}, opt)
+		db.Close()
+		return err
 	}
 
 	return fmt.Errorf("'%s' driver not supported", db.driver)
 }
 
-// CreateImage creates a new image.
-// Returns id of newly created image and an error if some shit happened
-func (tx *Tx) CreateImage(key string, userID int32) (int64, error) {
-
-	stmt, err := tx.Prepare(`
-		INSERT INTO Images(Key, UserID, CreateDate)
-			VALUES (?, ?, DATETIME('now', 'localtime') )`)
-
-	if err != nil {
-		return 0, err
-	}
-	res, err := stmt.Exec(key, userID)
-	if err != nil {
-		return -1, err
-	}
-	return res.LastInsertId()
-}
-
-func (tx *Tx) AddImageTags(imageID int64, tags []string) error {
-	query := "INSERT INTO ImageTags(ImageID, Tag) VALUES "
-	params := make([]string, len(tags))
-	args := make([]interface{}, len(tags)*2)
-
-	for i, tag := range tags {
-		params[i] = "(?, ?)"
-		args[i*2] = imageID
-		args[i*2+1] = tag
-	}
-	query += strings.Join(params, ",")
-
-	stmt, err := tx.Prepare(query)
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.Exec(args...)
-	return err
-}
-
 func (db *DB) QueryImageByKey(key string) (*Image, error) {
 
-	log.Printf("> QueryImageByKey: %v", db)
-	rows, err := db.Query(`
-		SELECT ID, Key, UserID, URL, Approved, TransformsUploaded, CreateDate, ApproveDate, TransformsUploadDate, Deleted, DeletionDate
-		FROM Images
-		WHERE Key=?`, key)
-	defer rows.Close()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if !rows.Next() {
-		return nil, fmt.Errorf("image not found")
-	}
 	img := new(Image)
-	return img, rows.Scan(&img.ID, &img.Key, &img.UserID, &img.URL, &img.Approved, &img.TransformsUploaded, &img.CreateDate, &img.ApproveDate, &img.TransformsUploadDate, &img.Deleted, &img.DeletionDate)
+	return img, db.Model(img).Where("Key = ?", key).Select()
 }
 
 func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {
-	db.Lock()
-	defer db.Unlock()
-	ImageID = -1
-	tx, err := db.Begin()
-	if err != nil {
-		return
+	var img = &Image{
+		UserID: userID,
+		Key:    imageKey,
+		Tags:   tags,
 	}
-
-	ImageID, err = tx.CreateImage(imageKey, userID)
-	if err != nil {
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return
-	}
-
-	if tags != nil && len(tags) > 0 {
-		tx, err = db.Begin()
-		if err != nil {
-			return
-		}
-
-		err = tx.AddImageTags(ImageID, tags)
-		if err != nil {
-			return
-		}
-		err = tx.Commit()
-	}
-	return
+	err = db.Insert(img)
+	return img.ID, err
 }
 
 func (db *DB) GetTransformations(imageID int64) ([]Transformation, error) {
-	rows, err := db.Query(`
-		SELECT t.Name, t.Tag, t.Type, t.Quality, t.Width, t.Height
-		FROM Transformations t, ImageTags it
-		WHERE it.ImageID = ? AND it.Tag = t.Tag`, imageID)
-
+	var trans []Transformation
+	img := &Image{ID: imageID}
+	err := db.Select(img)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var trans []Transformation
-
-	for rows.Next() {
-		tr := Transformation{}
-		err := rows.Scan(&tr.Name, &tr.Tag, &tr.Type, &tr.Quality, &tr.Width, &tr.Height)
-		if err != nil {
-			return nil, err
-		}
-
-		trans = append(trans, tr)
+	if len(img.Tags) == 0 {
+		return nil, nil
 	}
-	return trans, nil
+	var interfaceSlice []interface{} = make([]interface{}, len(img.Tags))
+	for i, d := range img.Tags {
+		interfaceSlice[i] = d
+	}
+
+	return trans, db.Model((*Transformation)(nil)).WhereIn("Tag IN (?)", interfaceSlice...).Select(&trans)
+
 }
 
 func (db *DB) SetTransformsUploaded(imgID int64) error {
-	db.Lock()
-	defer db.Unlock()
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	err = tx.updateImage(`
-		UPDATE Images
-		SET TransformsUploaded=true,
-			TransformsUploadDate=DATETIME('now', 'localtime')
-		WHERE ID=?`, imgID)
-	if err != nil {
-		return err
-	}
 
-	return tx.Commit()
+	img := &Image{ID: imgID}
+	_, err := db.Model(img).
+		Set("Transforms_Uploaded=true, Transforms_Upload_Date=now()").
+		WherePK().
+		Update(img)
+
+	return err
 }
 
 func (db *DB) SetClaimImage(imageKey string, userID int32) error {
-	db.Lock()
-	defer db.Unlock()
-
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	err = tx.ClaimImage(imageKey, userID)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	img := &Image{}
+	_, err := db.Model(img).
+		Set("Approved=true, Approve_Date=now()").
+		Where("Key = ? AND User_ID = ?", imageKey, userID).
+		Update(img)
+	return err
 }
 
 func (db *DB) DeleteImage(imageKey string) error {
-	db.Lock()
-	defer db.Unlock()
+	img := &Image{}
+	_, err := db.Model(img).
+		Set("Deleted=true, Deletion_Date=now()").
+		Where("Key = ?", imageKey).
+		Update(img)
+	return err
 
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	err = tx.updateImage(`
-		UPDATE Images
-		SET Deleted=true,
-			DeletionDate=DATETIME('now', 'localtime')
-		WHERE Key=?
-	`, imageKey)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
 }
 
-func (tx *Tx) updateImage(query string, args ...interface{}) error {
-	stmt, err := tx.Prepare(query)
-
-	if err != nil {
-		return err
-	}
-
-	res, err := stmt.Exec(args...)
-
-	if err != nil {
-		return err
-	}
-	if ra, er := res.RowsAffected(); er != nil {
-		return er
-	} else if ra != 1 {
-		log.Printf("ERROR: failed to update image: 1 row should be updated but updated %v", ra)
-		if err = tx.Rollback(); err != nil {
-			return err
-		}
-		return fmt.Errorf("failed to update image: 1 row should be updated but updated %v", ra)
-	}
-	return nil
-}
-
-func (tx *Tx) ClaimImage(key string, userID int32) error {
-	return tx.updateImage(`
-		UPDATE Images
-		SET Approved=true,
-			ApproveDate=DATETIME('now', 'localtime')
-		WHERE Key=? AND UserID=?`, key, userID)
-}
-
-func (tx *Tx) SetImageURL(key string, userID int32, URL string) error {
-	return tx.updateImage(`
-		UPDATE Images
-		SET URL=?
-		WHERE Key=? AND UserID=?`, URL, key, userID)
-
+func (db *DB) SetImageURL(key string, userID int32, URL string) error {
+	img := &Image{}
+	_, err := db.Model(img).
+		Set("Url=?", URL).
+		Where("Key = ? AND User_ID = ?", key, userID).
+		Update(img)
+	return err
 }

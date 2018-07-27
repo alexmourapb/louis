@@ -16,6 +16,11 @@ type Config struct {
 	CleanupPoolConcurrency uint   `envconfig:"CLEANUP_POOL_CONCURRENCY" default:"10"`
 	// In minutes
 	CleanUpDelay int `envconfig:"CLEANUP_DELAY" default:"1"`
+
+	PostgresUser     string `envconfig:"POSTGRES_USER" default:"postgres"`
+	PostgresPassword string `envconfig:"POSTGRES_PASSWORD" default:""`
+	PostgresAddress  string `envconfig:"POSTGRES_ADDRESS" default:"127.0.0.1:5432"`
+	PostgresDatabase string `envconfig:"POSTGRES_DATABASE" default:"postgres"`
 }
 
 // App - application configs
@@ -44,7 +49,7 @@ func InitFrom(envPath string) *Config {
 		log.Printf("INFO: failed to read env file: %v", err)
 	}
 
-	err = envconfig.Process("myapp", App)
+	err = envconfig.Process("louis", App)
 	if err != nil {
 		panic(err)
 	}

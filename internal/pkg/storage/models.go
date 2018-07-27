@@ -7,21 +7,23 @@ type Image struct {
 	ID                   int64
 	Key                  string
 	UserID               int32
-	URL                  string
-	Approved             bool
-	TransformsUploaded   bool
-	Deleted              bool
-	CreateDate           time.Time
-	ApproveDate          time.Time
-	TransformsUploadDate time.Time
-	DeletionDate         time.Time
+	User                 *User
+	URL                  string    `sql:"default:''"`
+	Approved             bool      `sql:"default:false"`
+	TransformsUploaded   bool      `sql:"default:false"`
+	Deleted              bool      `sql:"default:false"`
+	CreateDate           time.Time `sql:"default:now()"`
+	ApproveDate          time.Time `sql:"default:now()"`
+	TransformsUploadDate time.Time `sql:"default:now()"`
+	DeletionDate         time.Time `sql:"default:now()"`
+	Tags                 []string  `pg:",array"`
 }
 
 // Transformation - is model of how transforamiotn stored in DB
 // json mappings needed to read initial config from file
 type Transformation struct {
 	ID      int32  `json:"-"`
-	Name    string `json:"name"`
+	Name    string `json:"name" sql:",unique"`
 	Tag     string `json:"tag"`
 	Type    string `json:"type"`
 	Quality int    `json:"quality"`
@@ -31,4 +33,10 @@ type Transformation struct {
 
 type TransformList struct {
 	Transformations []Transformation `json:"transformations"`
+}
+
+type User struct {
+	ID        int32
+	PublicKey string
+	SecretKey string
 }

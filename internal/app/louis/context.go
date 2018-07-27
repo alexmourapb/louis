@@ -29,7 +29,10 @@ var globalCtx *AppContext
 
 func (appCtx *AppContext) DropAll() error {
 
-	// if appCtx.TransformationsEnabled {
+	if appCtx.Pool != nil {
+		appCtx.Pool.Drain()
+		appCtx.Pool.Stop()
+	}
 
 	client := redis2.NewClient(&redis2.Options{
 		Addr:     appCtx.Config.RedisURL,

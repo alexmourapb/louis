@@ -24,7 +24,6 @@ import (
 )
 
 const (
-	pathToTestDB    = "../../../test/data/test2.db"
 	redisConnection = "redis://127.0.0.1:6379"
 )
 
@@ -51,7 +50,6 @@ func TestUploadAuthorization(test *testing.T) {
 	appCtx, err := getAppContext()
 	defer appCtx.DropAll()
 	assert.NoError(test, err)
-	appCtx.Config = config.InitFrom("../../../.env")
 
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
@@ -71,7 +69,6 @@ func TestClaimAuthorization(test *testing.T) {
 	defer appCtx.DropAll()
 
 	assert.NoError(test, err)
-	appCtx.Config = config.InitFrom("../../../.env")
 
 	request, err := newClaimRequest("http://localhost:8000/claim", nil)
 
@@ -88,7 +85,6 @@ func TestUpload(test *testing.T) {
 	appCtx, err := getAppContext()
 
 	assert.NoError(err)
-	appCtx.Config = config.InitFrom("../../../.env")
 	appCtx.Config.CleanUpDelay = 0
 	appCtx = appCtx.WithWork()
 
@@ -120,19 +116,10 @@ func TestUpload(test *testing.T) {
 		test.Fatalf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
 	}
 
-	rows, err := appCtx.DB.Query("SELECT URL FROM Images WHERE key=?", imageKey)
-	defer rows.Close()
+	img, err := appCtx.DB.QueryImageByKey(imageKey)
+	assert.NoError(err)
 
-	var urlFromDB string
-
-	if rows.Next() {
-		failIfError(test, rows.Scan(&urlFromDB), "failed to scan URL column")
-	} else {
-		test.Fatalf("image with key %s not found", imageKey)
-	}
-
-	assert.Equal(url, urlFromDB, "url from response and in database should be the same")
-	rows.Close()
+	assert.Equal(url, img.URL, "url from response and in database should be the same")
 
 	gomega.Eventually(func() bool {
 		img, err := appCtx.DB.QueryImageByKey(imageKey)
@@ -146,7 +133,6 @@ func TestUploadWithTags(t *testing.T) {
 
 	appCtx, err := getAppContext()
 	assert.NoError(err)
-	appCtx.Config = config.InitFrom("../../../.env")
 	appCtx.WithWork()
 	defer appCtx.DropAll()
 
@@ -167,8 +153,6 @@ func TestUploadWithTags(t *testing.T) {
 
 	assert.Empty(resp.Error, "expected response error to be empty")
 
-	ensureTags(t, appCtx)
-
 	ensureTransformations(t, appCtx, resp)
 
 }
@@ -177,7 +161,6 @@ func TestClaim(t *testing.T) {
 	assert := assert.New(t)
 	appCtx, err := getAppContext()
 	assert.NoError(err)
-	appCtx.Config = config.InitFrom("../../../.env")
 	appCtx.WithWork()
 
 	defer appCtx.DropAll()
@@ -250,44 +233,21 @@ func ensureTransformations(t *testing.T, appCtx *AppContext, resp ResponseTempla
 
 }
 
-func ensureTags(t *testing.T, appCtx *AppContext) {
-	rows, err := appCtx.DB.Query("SELECT COUNT(*) FROM ImageTags")
-	defer rows.Close()
-	failIfError(t, err, "failed to execute query")
-
-	var cnt int
-	if rows.Next() {
-		failIfError(t, rows.Scan(&cnt), "failed to scan")
-		assert.Equal(t, 3, cnt)
-	} else {
-		t.Fatal("query returning nothing")
-	}
-}
-
 func ensureDatabaseStateAfterClaim(t *testing.T, appCtx *AppContext, imageKey string) {
 	// testing if db is in correct state
 
-	rows, err := appCtx.DB.Query("SELECT Approved FROM Images WHERE key=?", imageKey)
-	failIfError(t, err, "failed to execute sql query")
+	img, err := appCtx.DB.QueryImageByKey(imageKey)
+	assert.NoError(t, err)
 
-	defer rows.Close()
-	var approved bool
-	if rows.Next() {
-		failIfError(t, rows.Scan(&approved), "failed to scan 'approved' value")
-	} else {
-		t.Fatalf("image with key=%s not found in db", imageKey)
-	}
-
-	if !approved {
-		t.Fatalf("expected approved to be true but recieved false")
-	}
+	assert.True(t, img.Approved)
 }
 
 func getAppContext() (*AppContext, error) {
 	var err error
 	appCtx := &AppContext{}
+	appCtx.Config = config.InitFrom("../../../.env")
 
-	if appCtx.DB, err = storage.Open(pathToTestDB); err != nil {
+	if appCtx.DB, err = storage.Open(appCtx.Config); err != nil {
 		return nil, err
 	}
 
