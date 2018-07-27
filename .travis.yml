@@ -9,15 +9,21 @@ go:
 
 services:
   - redis
+  - postgres
 
 env:
-  - REDIS_CONNECTION=redis://127.0.0.1:6379/
+  - REDIS_URL=redis://127.0.0.1:6379/
+  - POSTGRES_DATABASE=travis_ci_test
+  - POSTGRES_PASSWORD=
 
 before_install:
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
   # install dependencies for bimg
   - curl -s https://raw.githubusercontent.com/h2non/bimg/master/preinstall.sh | sudo bash -
+
+before_script:
+  - psql -c 'create database travis_ci_test;' -U postgres
 
 after_script:
   - go test -v -covermode=count -coverprofile=coverage.out
