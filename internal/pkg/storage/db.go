@@ -5,6 +5,7 @@ import (
 	"github.com/KazanExpress/louis/internal/pkg/config"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"log"
 )
 
 const (
@@ -80,8 +81,20 @@ func (db *DB) DropDB() error {
 	if db.driver == "pg" {
 		opt := &orm.DropTableOptions{IfExists: true, Cascade: true}
 		err := db.DropTable(&Image{}, opt)
+		if err != nil {
+			log.Printf("ERROR: on droping db - %v", err)
+			err = nil
+		}
 		err = db.DropTable(&Transformation{}, opt)
+		if err != nil {
+			log.Printf("ERROR: on droping db - %v", err)
+			err = nil
+		}
 		err = db.DropTable(&User{}, opt)
+		if err != nil {
+			log.Printf("ERROR: on droping db - %v", err)
+			err = nil
+		}
 		db.Close()
 		return err
 	}

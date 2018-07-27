@@ -29,6 +29,9 @@ var globalCtx *AppContext
 
 func (appCtx *AppContext) DropAll() error {
 
+	if appCtx == nil {
+		return nil
+	}
 	if appCtx.Pool != nil {
 		appCtx.Pool.Drain()
 		appCtx.Pool.Stop()
