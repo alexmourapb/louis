@@ -12,7 +12,7 @@ services:
   - postgres
 
 env:
-  - REDIS_URL=redis://127.0.0.1:6379/ POSTGRES_DATABASE=travis_ci_test POSTGRES_PASSWORD=''
+  - REDIS_URL=redis://127.0.0.1:6379/ POSTGRES_DATABASE=travis_ci_test
 
 before_install:
   - go get golang.org/x/tools/cmd/cover
