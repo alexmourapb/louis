@@ -12,7 +12,6 @@ type Config struct {
 	RedisURL               string `envconfig:"REDIS_URL" default:":6379"`
 	TransformsPath         string `ignored:"true"`
 	InitDB                 bool   `ignored:"true"`
-	DataSourceName         string `envconfig:"DATA_SOURCE_NAME" default:"db.sqlite"`
 	CleanupPoolConcurrency uint   `envconfig:"CLEANUP_POOL_CONCURRENCY" default:"10"`
 	// In minutes
 	CleanUpDelay int `envconfig:"CLEANUP_DELAY" default:"1"`
