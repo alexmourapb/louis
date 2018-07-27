@@ -5,7 +5,7 @@ import "time"
 // Image - is model of how image stored in DB
 type Image struct {
 	ID                   int64
-	Key                  string
+	Key                  string `sql:",unique"`
 	UserID               int32
 	User                 *User
 	URL                  string    `sql:"default:''"`
