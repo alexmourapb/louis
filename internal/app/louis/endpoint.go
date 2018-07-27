@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/KazanExpress/louis/internal/pkg/transformations"
-	"github.com/RichardKnop/machinery/v1/backends/result"
 	// "github.com/go-redis/redis"
 	"github.com/rs/xid"
 	"image"
@@ -21,7 +19,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 )
 
 const (
@@ -30,12 +27,6 @@ const (
 	LowCompressionQuality  = 15
 	OriginalTransformName  = "original"
 )
-
-type AppContext struct {
-	DB              *storage.DB
-	Queue           queue.JobQueue
-	RedisConnection string
-}
 
 type ImageData struct {
 	Key string `json:"key"`
@@ -55,23 +46,6 @@ type UploadResponsePayload struct {
 	ImageKey        string            `json:"key"`
 	OriginalURL     string            `json:"originalUrl"`
 	Transformations map[string]string `json:"transformations"`
-}
-
-func (appCtx *AppContext) DropAll() error {
-
-	// if appCtx.TransformationsEnabled {
-
-	// 	client := redis.NewClient(&redis.Options{
-	// 		Addr:     appCtx.RedisConnection[8:],
-	// 		Password: "", // no password set
-	// 		DB:       0,  // use default DB
-	// 	})
-	// 	err := client.FlushAll().Err()
-	// 	if err != nil {
-	// 		log.Printf("WARN: failed to drop redis - %v", err)
-	// 	}
-	// }
-	return appCtx.DB.DropDB()
 }
 
 func GetDashboard(w http.ResponseWriter, r *http.Request) {
@@ -192,6 +166,8 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+		log.Printf("ms2: %v", appCtx)
+
 		userID, err := authorizeByPublicKey(r.Header.Get("Authorization"))
 		if err != nil {
 			respondWithJSON(w, err.Error(), nil, http.StatusUnauthorized)
@@ -239,6 +215,11 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
+		_, err = appCtx.Enqueuer.EnqueueUniqueIn(CleanupTask, int64(appCtx.Config.CleanUpDelay*60), map[string]interface{}{"key": imgKey})
+		if err != nil {
+			log.Printf("ERROR: failed to enqueue clean up task: %v", err)
+		}
+
 		if failOnError(w, setImageURL(appCtx, imgKey, transformsURLs[OriginalTransformName], userID), "failed to set image url", http.StatusInternalServerError) {
 			return
 		}
@@ -276,11 +257,9 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		// if appCtx.TransformationsEnabled {
-		// 	if failOnError(w, addImageTransformsTasksToQueue(appCtx, image), "failed to pass msg to rabbitmq", http.StatusInternalServerError) {
-		// 		return
-		// 	}
-		// }
+		if image.Deleted {
+			respondWithJSON(w, "image is deleted", "", http.StatusBadRequest)
+		}
 
 		if failOnError(w, appCtx.DB.SetClaimImage(image.Key, userID), "failed to claim image", http.StatusInternalServerError) {
 			return
@@ -302,74 +281,6 @@ func setImageURL(appCtx *AppContext, imageKey, url string, userID int32) error {
 	}
 
 	return tx.Commit()
-}
-
-// DEPRECATED
-func addImageTransformsTasksToQueue(appCtx *AppContext, image *storage.Image) error {
-
-	// select transformations by image
-	trans, err := appCtx.DB.GetTransformations(image.ID)
-	if err != nil {
-		return err
-	}
-
-	var wg sync.WaitGroup
-	var aresults []*result.AsyncResult
-
-	for _, tran := range trans {
-		var aresult *result.AsyncResult
-		switch tran.Type {
-		case "fit":
-			aresult, err = appCtx.Queue.PublishFitTransform(queue.NewTransformData(image, &tran))
-
-			break
-		case "fill":
-			aresult, err = appCtx.Queue.PublishFillTransform(queue.NewTransformData(image, &tran))
-		}
-
-		if err != nil {
-			log.Printf("ERROR: failed to enqueue transform fit task: %v", err)
-			return err
-		}
-		wg.Add(1)
-		aresults = append(aresults, aresult)
-	}
-	var ers = make(chan error, len(trans)+1)
-	go func() {
-		for _, ares := range aresults {
-			go func(ar *result.AsyncResult) {
-				_, err = ar.Get(time.Duration(time.Millisecond * 200))
-				if err != nil {
-					ers <- err
-				}
-				wg.Done()
-			}(ares)
-		}
-		wg.Wait()
-		noErr := fmt.Errorf("no error")
-		ers <- noErr
-		close(ers)
-
-		hasErrors := false
-		for err := range ers {
-
-			if err != noErr {
-				log.Printf("WARN: failed to perform transform task - %v", err)
-				hasErrors = true
-			}
-		}
-		if hasErrors {
-			return
-		}
-
-		err := appCtx.DB.SetTransformsUploaded(image.ID)
-		if err != nil {
-			// it may fail because connection to db may be closed
-			log.Printf("WARN: failed to set transforms uploaded for image %v : %v", image.ID, err)
-		}
-	}()
-
-	return nil
 }
 
 func respondWithJSON(w http.ResponseWriter, err string, payload interface{}, code int) error {

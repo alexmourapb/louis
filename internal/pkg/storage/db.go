@@ -72,9 +72,11 @@ func (db *DB) InitDB() error {
 		 UserID INTEGER,
 		 URL VARCHAR(50) DEFAULT '' NOT NULL,
 		 Approved BOOLEAN DEFAULT FALSE,
+		 Deleted BOOLEAN DEFAULT FALSE,
 		 TransformsUploaded BOOLEAN DEFAULT FALSE,
 		 CreateDate DATETIME DEFAULT current_timestamp,
 		 ApproveDate DATETIME DEFAULT current_timestamp,
+		 DeletionDate DATETIME DEFAULT current_timestamp,
 		 TransformsUploadDate DATETIME DEFAULT current_timestamp,
 
 		 FOREIGN KEY(UserID) REFERENCES Users(ID)
@@ -186,8 +188,9 @@ func (tx *Tx) AddImageTags(imageID int64, tags []string) error {
 
 func (db *DB) QueryImageByKey(key string) (*Image, error) {
 
+	log.Printf("> QueryImageByKey: %v", db)
 	rows, err := db.Query(`
-		SELECT ID, Key, UserID, URL, Approved, TransformsUploaded, CreateDate, ApproveDate, TransformsUploadDate
+		SELECT ID, Key, UserID, URL, Approved, TransformsUploaded, CreateDate, ApproveDate, TransformsUploadDate, Deleted, DeletionDate
 		FROM Images
 		WHERE Key=?`, key)
 	defer rows.Close()
@@ -200,7 +203,7 @@ func (db *DB) QueryImageByKey(key string) (*Image, error) {
 		return nil, fmt.Errorf("image not found")
 	}
 	img := new(Image)
-	return img, rows.Scan(&img.ID, &img.Key, &img.UserID, &img.URL, &img.Approved, &img.TransformsUploaded, &img.CreateDate, &img.ApproveDate, &img.TransformsUploadDate)
+	return img, rows.Scan(&img.ID, &img.Key, &img.UserID, &img.URL, &img.Approved, &img.TransformsUploaded, &img.CreateDate, &img.ApproveDate, &img.TransformsUploadDate, &img.Deleted, &img.DeletionDate)
 }
 
 func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {
@@ -291,6 +294,28 @@ func (db *DB) SetClaimImage(imageKey string, userID int32) error {
 	}
 
 	err = tx.ClaimImage(imageKey, userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (db *DB) DeleteImage(imageKey string) error {
+	db.Lock()
+	defer db.Unlock()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	err = tx.updateImage(`
+		UPDATE Images
+		SET Deleted=true,
+			DeletionDate=DATETIME('now', 'localtime')
+		WHERE Key=?
+	`, imageKey)
 	if err != nil {
 		return err
 	}

@@ -87,6 +87,27 @@ func TestCreateImage(t *testing.T) {
 	assert.Equal(t, 1, userID)
 }
 
+func TestDeleteImage(t *testing.T) {
+	assert := assert.New(t)
+	var db, err = getDB()
+	defer db.DropDB()
+
+	failIfError(t, err, "failed to open db")
+
+	failIfError(t, db.InitDB(), "failed to create tables")
+
+	_, err = db.AddImage("key", 1)
+
+	assert.NoError(err)
+
+	assert.NoError(db.DeleteImage("key"))
+
+	img, err := db.QueryImageByKey("key")
+
+	assert.NoError(err)
+	assert.True(img.Deleted)
+}
+
 func TestClaimImage(t *testing.T) {
 	var db, err = getDB()
 	defer db.DropDB()

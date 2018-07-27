@@ -10,9 +10,11 @@ type Image struct {
 	URL                  string
 	Approved             bool
 	TransformsUploaded   bool
+	Deleted              bool
 	CreateDate           time.Time
 	ApproveDate          time.Time
 	TransformsUploadDate time.Time
+	DeletionDate         time.Time
 }
 
 // Transformation - is model of how transforamiotn stored in DB

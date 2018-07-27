@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	// "github.com/KazanExpress/louis/internal/pkg/queue"
+	"github.com/KazanExpress/louis/internal/pkg/config"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
@@ -48,8 +48,10 @@ var tlist = []storage.Transformation{
 }
 
 func TestUploadAuthorization(test *testing.T) {
-
-	godotenv.Load("../../../.env")
+	appCtx, err := getAppContext()
+	defer appCtx.DropAll()
+	assert.NoError(test, err)
+	appCtx.Config = config.InitFrom("../../../.env")
 
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
@@ -59,26 +61,19 @@ func TestUploadAuthorization(test *testing.T) {
 
 	response := httptest.NewRecorder()
 
-	appCtx, err := getAppContext()
-	defer appCtx.DropAll()
-
-	failIfError(test, err, "failed to get app ctx")
-
 	UploadHandler(appCtx)(response, request)
 
 	assert.Equal(test, http.StatusUnauthorized, response.Code, "should respond with 401")
 }
 
 func TestClaimAuthorization(test *testing.T) {
-	godotenv.Load("../../../.env")
-
-	request, err := newClaimRequest("http://localhost:8000/claim", nil)
-	failIfError(test, err, "failed to create file upload request")
-
 	appCtx, err := getAppContext()
 	defer appCtx.DropAll()
 
-	failIfError(test, err, "failed to get app ctx")
+	assert.NoError(test, err)
+	appCtx.Config = config.InitFrom("../../../.env")
+
+	request, err := newClaimRequest("http://localhost:8000/claim", nil)
 
 	response := httptest.NewRecorder()
 	ClaimHandler(appCtx)(response, request)
@@ -87,9 +82,15 @@ func TestClaimAuthorization(test *testing.T) {
 }
 
 func TestUpload(test *testing.T) {
+	gomega.RegisterTestingT(test)
 
 	assert := assert.New(test)
-	godotenv.Load("../../../.env")
+	appCtx, err := getAppContext()
+
+	assert.NoError(err)
+	appCtx.Config = config.InitFrom("../../../.env")
+	appCtx.Config.CleanUpDelay = 0
+	appCtx = appCtx.WithWork()
 
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
@@ -98,10 +99,7 @@ func TestUpload(test *testing.T) {
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
-	appCtx, err := getAppContext()
 	defer appCtx.DropAll()
-
-	failIfError(test, err, "failed to get app ctx")
 
 	response := httptest.NewRecorder()
 	UploadHandler(appCtx)(response, request)
@@ -134,13 +132,23 @@ func TestUpload(test *testing.T) {
 	}
 
 	assert.Equal(url, urlFromDB, "url from response and in database should be the same")
+	rows.Close()
 
+	gomega.Eventually(func() bool {
+		img, err := appCtx.DB.QueryImageByKey(imageKey)
+		return err == nil && img.Deleted
+
+	}, 10, 1).Should(gomega.BeTrue())
 }
 
 func TestUploadWithTags(t *testing.T) {
 	assert := assert.New(t)
 
-	godotenv.Load("../../../.env")
+	appCtx, err := getAppContext()
+	assert.NoError(err)
+	appCtx.Config = config.InitFrom("../../../.env")
+	appCtx.WithWork()
+	defer appCtx.DropAll()
 
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
@@ -148,11 +156,6 @@ func TestUploadWithTags(t *testing.T) {
 	failIfError(t, err, "failed to create file upload request")
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
-
-	appCtx, err := getAppContext()
-	defer appCtx.DropAll()
-
-	failIfError(t, err, "failed to get app ctx")
 
 	response := httptest.NewRecorder()
 	UploadHandler(appCtx)(response, request)
@@ -171,15 +174,14 @@ func TestUploadWithTags(t *testing.T) {
 }
 
 func TestClaim(t *testing.T) {
-	gomega.RegisterTestingT(t)
 	assert := assert.New(t)
-	godotenv.Load("../../../.env")
-
 	appCtx, err := getAppContext()
+	assert.NoError(err)
+	appCtx.Config = config.InitFrom("../../../.env")
+	appCtx.WithWork()
+
 	defer appCtx.DropAll()
 	assert.NoError(appCtx.DB.EnsureTransformations(tlist))
-
-	failIfError(t, err, "failed to get app ctx")
 
 	// Upload request
 	path, _ := os.Getwd()
