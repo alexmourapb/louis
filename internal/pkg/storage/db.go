@@ -6,6 +6,8 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"log"
+	"sync"
+	"time"
 )
 
 const (
@@ -30,6 +32,15 @@ func Open(cfg *config.Config) (*DB, error) {
 		Database: cfg.PostgresDatabase,
 	})
 
+	db.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
+		query, err := event.FormattedQuery()
+		if err != nil {
+			panic(err)
+		}
+
+		log.Printf("POSTGRES: %s %s", time.Since(event.StartTime), query)
+	})
+
 	return &DB{db, "pg"}, nil
 }
 
@@ -46,25 +57,37 @@ var ifNotExist = &orm.CreateTableOptions{
 	IfNotExists: true,
 }
 
+var created bool
+var lock = &sync.Mutex{}
+
 func (db *DB) InitDB() error {
 
-	err := db.CreateTable(&User{}, ifNotExist)
+	log.Printf("INITING")
+	lock.Lock()
+	defer lock.Unlock()
+	log.Printf("INITING ->")
+	defer log.Printf("INITED ->")
+	// if created {
+	// 	log.Printf("HEY, DB is already created!")
+	// }
+	created = true
+	err := db.CreateTable(&User{}, &orm.CreateTableOptions{IfNotExists: true})
 
 	if err != nil {
 		return err
 	}
-	err = db.CreateTable(&Image{}, ifNotExist)
+	err = db.CreateTable(&Image{}, &orm.CreateTableOptions{IfNotExists: true})
 
 	if err != nil {
 		return err
 	}
 
-	err = db.CreateTable(&Transformation{}, ifNotExist)
+	err = db.CreateTable(&Transformation{}, &orm.CreateTableOptions{IfNotExists: true})
 
 	if err != nil {
 		return err
 	}
-
+	<-time.After(time.Second)
 	return err
 }
 
@@ -78,6 +101,11 @@ func (db *DB) EnsureTransformations(trans []Transformation) error {
 
 func (db *DB) DropDB() error {
 
+	log.Printf("DROPINNG->")
+	lock.Lock()
+	defer lock.Unlock()
+	log.Printf("DROPINNG-->>>>")
+	defer log.Printf("DROPED-->>>>")
 	if db.driver == "pg" {
 		opt := &orm.DropTableOptions{IfExists: true, Cascade: true}
 		err := db.DropTable(&Image{}, opt)
@@ -95,7 +123,8 @@ func (db *DB) DropDB() error {
 			log.Printf("ERROR: on droping db - %v", err)
 			err = nil
 		}
-		db.Close()
+		<-time.After(time.Second * 1)
+		// db.Close()
 		return err
 	}
 
@@ -105,7 +134,7 @@ func (db *DB) DropDB() error {
 func (db *DB) QueryImageByKey(key string) (*Image, error) {
 
 	img := new(Image)
-	return img, db.Model(img).Where("Key = ?", key).Select()
+	return img, db.Model(img).Where("Key = ?", key).Select(img)
 }
 
 func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {

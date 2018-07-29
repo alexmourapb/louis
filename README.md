@@ -96,7 +96,6 @@ AWS_ACCESS_KEY_ID=<your access key id>
 AWS_SECRET_ACCESS_KEY=<your secret key>
 LOUIS_PUBLIC_KEY=<key used for uploading images>
 LOUIS_SECRET_KEY=<key used for claiming images>
-DATA_SOURCE_NAME=<path to sqlite db>
 ```
 
 Example:
@@ -109,7 +108,6 @@ AWS_ACCESS_KEY_ID=super-public-key-id
 AWS_SECRET_ACCESS_KEY=super-secret-key
 LOUIS_PUBLIC_KEY=well-known-public-key
 LOUIS_SECRET_KEY=secret-louis-key
-DATA_SOURCE_NAME=mysqlite.db
 ```
 
 ## Development

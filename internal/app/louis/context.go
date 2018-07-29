@@ -15,6 +15,7 @@ type AppContext struct {
 	Pool     *work.WorkerPool
 	Config   *config.Config
 	Enqueuer *work.Enqueuer
+	Dropped  bool
 }
 
 func SetGlobalCtx(ctx *AppContext) {
@@ -32,9 +33,20 @@ func (appCtx *AppContext) DropAll() error {
 	if appCtx == nil {
 		return nil
 	}
+
+	if appCtx.Dropped {
+		return nil
+	}
+
+	appCtx.Dropped = true
+
 	if appCtx.Pool != nil {
+		log.Printf("POOL: draining >")
 		appCtx.Pool.Drain()
+		log.Printf("POOL: drained =>")
+		log.Printf("POOL: stoping >")
 		appCtx.Pool.Stop()
+		log.Printf("POOL: stoped=>")
 	}
 
 	client := redis2.NewClient(&redis2.Options{
