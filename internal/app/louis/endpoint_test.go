@@ -12,6 +12,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"io"
 	"log"
 	"mime/multipart"
@@ -47,48 +48,86 @@ var tlist = []storage.Transformation{
 	},
 }
 
-func TestClaimAuthorization(test *testing.T) {
-	appCtx, err := getAppContext()
-	defer appCtx.DropAll()
+type Suite struct {
+	suite.Suite
+	appCtx *AppContext
+}
 
-	assert.NoError(test, err)
+func (s *Suite) SetupSuite() {
+	log.Printf("Executing setup all suite")
+	var err error
+	appCtx := &AppContext{}
+	appCtx.Config = config.InitFrom("../../../.env")
+
+	if appCtx.DB, err = storage.Open(appCtx.Config); err != nil {
+		s.Fail("failed to connect to db - %v", err)
+	}
+	s.appCtx = appCtx
+	appCtx.WithWork()
+}
+
+func (s *Suite) BeforeTest(tn, sn string) {
+
+	log.Printf("Executing setup for test")
+	if err := s.appCtx.DB.InitDB(); err != nil {
+		s.Fail("failed to init db - %v", err)
+	}
+
+}
+
+func (s *Suite) AfterTest(tn, sn string) {
+	log.Printf("Executing tear down test")
+	s.appCtx.DB.DropDB()
+	s.appCtx.DropRedis()
+}
+
+func (s *Suite) TearDownSuite() {
+	log.Printf("Executing tear down all")
+	s.appCtx.Pool.Drain()
+	s.appCtx.Pool.Stop()
+}
+
+func TestEndpointSuite(t *testing.T) {
+	suite.Run(t, new(Suite))
+}
+
+func (s *Suite) TestClaimAuthorization() {
+	appCtx := s.appCtx
 
 	request, err := newClaimRequest("http://localhost:8000/claim", nil)
+	s.NoError(err)
 
 	response := httptest.NewRecorder()
 	ClaimHandler(appCtx)(response, request)
 
-	assert.Equal(test, http.StatusUnauthorized, response.Code, "should respond with 401")
+	s.Equal(http.StatusUnauthorized, response.Code, "should respond with 401")
 
 	// appCtx.DropAll()
 
 }
-func TestUploadAuthorization(test *testing.T) {
-	appCtx, err := getAppContext()
-	defer appCtx.DropAll()
-	assert.NoError(test, err)
+func (s *Suite) TestUploadAuthorization() {
 
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
 
 	request, err := newFileUploadRequest("http://localhost:8000/upload", nil, "file", path)
-	failIfError(test, err, "failed to create file upload request")
+	s.NoError(err, "failed to create file upload request")
 
 	response := httptest.NewRecorder()
 
-	UploadHandler(appCtx)(response, request)
+	UploadHandler(s.appCtx)(response, request)
 
-	assert.Equal(test, http.StatusUnauthorized, response.Code, "should respond with 401")
+	s.Equal(http.StatusUnauthorized, response.Code, "should respond with 401")
 
 	// appCtx.DropAll()
 
 }
 
-func TestUpload(test *testing.T) {
-	return
-	gomega.RegisterTestingT(test)
+func (s *Suite) TeestUpload() {
+	s.T().Skip()
+	gomega.RegisterTestingT(s.T())
 
-	assert := assert.New(test)
+	assert := assert.New(s.T())
 	appCtx, err := getAppContext()
 	defer appCtx.DropAll()
 
@@ -99,7 +138,7 @@ func TestUpload(test *testing.T) {
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "./../../../test/data/picture.jpg")
 	request, err := newFileUploadRequest("http://localhost:8000/upload", nil, "file", path)
-	failIfError(test, err, "failed to create file upload request")
+	assert.NoError(err, "failed to create file upload request")
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
@@ -109,7 +148,7 @@ func TestUpload(test *testing.T) {
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
 	var resp ResponseTemplate
-	failIfError(test, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
+	assert.NoError(json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
 	assert.Empty(resp.Error, "expected response error to be empty")
 
@@ -119,7 +158,7 @@ func TestUpload(test *testing.T) {
 	imageKey := payload["key"].(string)
 
 	if !strings.HasPrefix(url, "http") || !strings.HasSuffix(url, ".jpg") {
-		test.Fatalf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
+		s.Failf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
 	}
 
 	img, err := appCtx.DB.QueryImageByKey(imageKey)
@@ -139,7 +178,7 @@ func TestUpload(test *testing.T) {
 	// appCtx.DropAll()
 }
 
-func TestUploadWithTags(t *testing.T) {
+func TeestUploadWithTags(t *testing.T) {
 	return
 	assert := assert.New(t)
 
@@ -170,7 +209,7 @@ func TestUploadWithTags(t *testing.T) {
 
 }
 
-func TestClaim(t *testing.T) {
+func TeestClaim(t *testing.T) {
 	return
 	assert := assert.New(t)
 	appCtx, err := getAppContext()

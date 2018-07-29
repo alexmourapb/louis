@@ -49,6 +49,11 @@ func (appCtx *AppContext) DropAll() error {
 		log.Printf("POOL: stoped=>")
 	}
 
+	appCtx.DropRedis()
+	return appCtx.DB.DropDB()
+}
+
+func (appCtx *AppContext) DropRedis() {
 	client := redis2.NewClient(&redis2.Options{
 		Addr:     appCtx.Config.RedisURL,
 		Password: "", // no password set
@@ -58,7 +63,6 @@ func (appCtx *AppContext) DropAll() error {
 	if err != nil {
 		log.Printf("WARN: failed to drop redis - %v", err)
 	}
-	return appCtx.DB.DropDB()
 }
 
 func (appCtx *AppContext) WithWork() *AppContext {
