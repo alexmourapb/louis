@@ -87,7 +87,6 @@ func (db *DB) InitDB() error {
 	if err != nil {
 		return err
 	}
-	<-time.After(time.Second)
 	return err
 }
 

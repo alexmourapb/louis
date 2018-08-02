@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"time"
 	// "github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/config"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
@@ -123,15 +122,13 @@ func (s *Suite) TestUploadAuthorization() {
 
 }
 
-func (s *Suite) TeestUpload() {
+func (s *Suite) TestUpload() {
 	s.T().Skip()
-	gomega.RegisterTestingT(s.T())
+	gmega := gomega.NewGomegaWithT(s.T())
 
 	assert := assert.New(s.T())
-	appCtx, err := getAppContext()
-	defer appCtx.DropAll()
+	appCtx := s.appCtx
 
-	assert.NoError(err)
 	appCtx.Config.CleanUpDelay = 0
 	appCtx = appCtx.WithWork()
 
@@ -152,6 +149,8 @@ func (s *Suite) TeestUpload() {
 
 	assert.Empty(resp.Error, "expected response error to be empty")
 
+	assert.NotNil(resp.Payload)
+
 	var payload = resp.Payload.(map[string]interface{})
 
 	url := payload["originalUrl"].(string)
@@ -166,7 +165,7 @@ func (s *Suite) TeestUpload() {
 
 	assert.Equal(url, img.URL, "url from response and in database should be the same")
 
-	gomega.Eventually(func() bool {
+	gmega.Eventually(func() bool {
 		img, err := appCtx.DB.QueryImageByKey(imageKey)
 		if err != nil {
 			log.Printf("TEST ERROR: %v", err)
@@ -178,63 +177,54 @@ func (s *Suite) TeestUpload() {
 	// appCtx.DropAll()
 }
 
-func TeestUploadWithTags(t *testing.T) {
-	return
-	assert := assert.New(t)
+func (s *Suite) TestUploadWithTags() {
+	s.T().Skip()
 
-	appCtx, err := getAppContext()
-	<-time.After(time.Second)
-	defer appCtx.DropAll()
-	assert.NoError(err)
-	// appCtx.WithWork()
+	assert := assert.New(s.T())
 
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
 	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": " tag1 , tag2 , super-tag"}, "file", path)
-	failIfError(t, err, "failed to create file upload request")
+	failIfError(s.T(), err, "failed to create file upload request")
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
 	response := httptest.NewRecorder()
-	UploadHandler(appCtx)(response, request)
+	UploadHandler(s.appCtx)(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
 	var resp ResponseTemplate
-	failIfError(t, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
+	failIfError(s.T(), json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
 	assert.Empty(resp.Error, "expected response error to be empty")
 
-	ensureTransformations(t, appCtx, resp)
+	ensureTransformations(s.T(), s.appCtx, resp)
 
 }
 
-func TeestClaim(t *testing.T) {
-	return
-	assert := assert.New(t)
-	appCtx, err := getAppContext()
-	assert.NoError(err)
-	appCtx.WithWork()
+func (s *Suite) TestClaim() {
+	s.T().Skip()
 
-	defer appCtx.DropAll()
-	assert.NoError(appCtx.DB.EnsureTransformations(tlist))
+	assert := assert.New(s.T())
+	assert.NoError(s.appCtx.DB.EnsureTransformations(tlist))
 
 	// Upload request
 	path, _ := os.Getwd()
 	path = filepath.Join(path, "../../../test/data/picture.jpg")
 	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": "thubnail_small_low"}, "file", path)
 
-	failIfError(t, err, "failed to create file upload request")
+	failIfError(s.T(), err, "failed to create file upload request")
 
 	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
 
 	response := httptest.NewRecorder()
-	UploadHandler(appCtx)(response, request)
+	UploadHandler(s.appCtx)(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
 	var resp ResponseTemplate
-	failIfError(t, json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
+	failIfError(s.T(), json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
 	assert.Empty(resp.Error, "expected response error to be empty")
 
@@ -247,14 +237,14 @@ func TeestClaim(t *testing.T) {
 	response = httptest.NewRecorder()
 	request, err = newClaimRequest("http://localhost:8000/claim", resp.Payload)
 
-	failIfError(t, err, "failed to create claim request")
+	failIfError(s.T(), err, "failed to create claim request")
 	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))
 
-	ClaimHandler(appCtx)(response, request)
+	ClaimHandler(s.appCtx)(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
-	ensureDatabaseStateAfterClaim(t, appCtx, imageKey)
+	ensureDatabaseStateAfterClaim(s.T(), s.appCtx, imageKey)
 
 }
 
