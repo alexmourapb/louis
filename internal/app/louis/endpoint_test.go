@@ -237,7 +237,7 @@ func (s *Suite) TestClaim() {
 
 	// Claim response testing
 	response = httptest.NewRecorder()
-	request, err = newClaimRequest("http://localhost:8000/claim", resp.Payload)
+	request, err = newClaimRequest("http://localhost:8000/claim", map[string]interface{}{"keys": []string{imageKey}})
 
 	failIfError(s.T(), err, "failed to create claim request")
 	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))

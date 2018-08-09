@@ -28,8 +28,8 @@ const (
 )
 
 type ImageData struct {
-	Key string `json:"key"`
-	URL string `json:"url"`
+	Keys []string `json:"keys"`
+	URL  string   `json:"url"`
 }
 
 type ImageKey struct {
@@ -249,23 +249,26 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		image, err := appCtx.DB.QueryImageByKey(img.Key)
-		if failOnError(w, err, "failed to get image by key", http.StatusBadRequest) {
+		images, err := appCtx.DB.GetImagesWithKeys(img.Keys)
+		if failOnError(w, err, "failed to get images with keys", http.StatusBadRequest) {
 			return
 		}
 
-		if image.Deleted {
-			respondWithJSON(w, "image is deleted", "", http.StatusBadRequest)
-			log.Printf("INFO: trying to claim deleted image")
+		for _, image := range *images {
 
+			if image.Deleted {
+				respondWithJSON(w, fmt.Sprintf("image with key = %v is deleted", image.Key), "", http.StatusBadRequest)
+				log.Printf("INFO: trying to claim deleted image")
+
+				return
+			}
+		}
+
+		if failOnError(w, appCtx.DB.SetClaimImages(img.Keys, userID), "failed to claim image", http.StatusInternalServerError) {
 			return
 		}
 
-		if failOnError(w, appCtx.DB.SetClaimImage(image.Key, userID), "failed to claim image", http.StatusInternalServerError) {
-			return
-		}
-
-		log.Printf("INFO: image with key %v claimed", img.Key)
+		log.Printf("INFO: images with keys [%v] claimed", img.Keys)
 		respondWithJSON(w, "", "ok", 200)
 	})
 }

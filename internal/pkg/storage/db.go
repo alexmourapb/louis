@@ -107,6 +107,12 @@ func (db *DB) QueryImageByKey(key string) (*Image, error) {
 	return img, db.Where("Key = ?", key).First(img).Error
 }
 
+func (db *DB) GetImagesWithKeys(keys []string) (res *[]Image, err error) {
+	res = new([]Image)
+	err = db.Where("key in (?)", keys).Find(res).Error
+	return
+}
+
 func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {
 	var img = &Image{
 		UserID: userID,
@@ -117,7 +123,6 @@ func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID i
 	return img.ID, err
 }
 
-// TODO: cover with test
 func (db *DB) GetTransformations(imageID int64) ([]Transformation, error) {
 	var trans []Transformation
 	img := &Image{ID: imageID}
@@ -142,6 +147,15 @@ func (db *DB) SetTransformsUploaded(imgID int64) error {
 	img := &Image{ID: imgID}
 	err := db.Model(img).
 		Updates(map[string]interface{}{"Transforms_Uploaded": true, "Transforms_Upload_Date": "now()"}).Error
+
+	return err
+}
+
+func (db *DB) SetClaimImages(imageKeys []string, userID int32) error {
+	img := &Image{}
+	err := db.Model(img).
+		Where("Key in (?) AND User_ID = ?", imageKeys, userID).
+		Updates(map[string]interface{}{"Approved": true, "Approve_Date": "now()"}).Error
 
 	return err
 }

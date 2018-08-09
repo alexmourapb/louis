@@ -193,7 +193,7 @@ func (s *Suite) TestGetTransformations() {
 		imgKey       = "img_key"
 		userID int32 = 1
 	)
-	var tags = []string{"thubnail_small_low"}
+	var tags = []string{"thubnail_small_low", "cover_wide"}
 
 	imgID, err := db.AddImage(imgKey, userID, tags...)
 	assert.NoError(err)
@@ -243,4 +243,34 @@ func (s *Suite) TestQueryImageByKey(t *testing.T) {
 	assert.Equal(imgID, img.ID)
 	assert.Equal(userID, img.UserID)
 
+}
+
+func (s *Suite) TestGetImagesWithKeys() {
+	const userID = 1
+	var keys = []string{"key1", "key2", "key3", "key4"}
+
+	for _, key := range keys {
+		_, err := s.db.AddImage(key, userID)
+		s.NoError(err)
+	}
+
+	images, err := s.db.GetImagesWithKeys(keys[:2])
+	s.NoError(err)
+	s.Equal(2, len(*images))
+}
+
+func (s *Suite) TestClaimImages() {
+	const userID = 1
+	var keys = []string{"key1", "key2", "key3", "key4"}
+	for _, key := range keys {
+		_, err := s.db.AddImage(key, userID)
+		s.NoError(err)
+	}
+
+	s.NoError(s.db.SetClaimImages(keys, userID))
+	images, err := s.db.GetImagesWithKeys(keys)
+	s.NoError(err)
+	for _, img := range *images {
+		s.True(img.Approved)
+	}
 }
