@@ -45,11 +45,8 @@ var lock = &sync.Mutex{}
 
 func (db *DB) InitDB() error {
 
-	log.Printf("INITING")
 	lock.Lock()
 	defer lock.Unlock()
-	log.Printf("INITING ->")
-	defer log.Printf("INITED ->")
 	d := db.CreateTable(&User{})
 	if d.Error != nil {
 		return d.Error
