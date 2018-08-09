@@ -34,7 +34,7 @@ func Open(cfg *config.Config) (*DB, error) {
 		return nil, err
 	}
 
-	db.LogMode(true)
+	// db.LogMode(true)
 
 	return &DB{db, "pg"}, nil
 }
