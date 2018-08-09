@@ -52,7 +52,7 @@ Headers:
     Content-Type: application/json
 Body:
     {
-        "key": "bd35b7n03vdv2aen0"
+        "keys": ["bd35b7n03vdv2aen0", "oeuaoeuhstbksu234"]
     }
 ```
 
@@ -90,25 +90,22 @@ docker run -e DATA_SOURCE_NAME=/data/db.sqlite -v /my-safe/path/to/sqlite-dir:/d
 
 ```env
 S3_BUCKET=<name of S3 bucket>
-S3_ENDPOINT=<url to S3 api server; if not set used AWS endpoint by default>
-AWS_REGION=<region where s3 is stored>
-AWS_ACCESS_KEY_ID=<your access key id>
-AWS_SECRET_ACCESS_KEY=<your secret key>
+S3_ENDPOINT=https://hb.bizmrg.com <url to S3 api server; if not set used AWS endpoint by default>
+AWS_REGION=ru-msk<region where s3 is stored>
+AWS_ACCESS_KEY_ID=<your S3 access key id>
+AWS_SECRET_ACCESS_KEY=<your S3 secret key>
 LOUIS_PUBLIC_KEY=<key used for uploading images>
 LOUIS_SECRET_KEY=<key used for claiming images>
+REDIS_URL=:6379
+CLEANUP_DELAY=1 <delay in minutes after which not claimed images will be deleted>
+CLEANUP_POOL_CONCURRENCY=10 <number of concurrent cleanup gorutines>
+POSTGRES_ADDRESS=127.0.0.1:5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=1234
+POSTGRES_DATABASE=postgres
+POSTGRES_SSL_MODE=disable <disable/enable>
 ```
 
-Example:
-
-```env
-S3_BUCKET=my-bucket-name
-S3_ENDPOINT=https://hb.bizmrg.com
-AWS_REGION=ru-msk
-AWS_ACCESS_KEY_ID=super-public-key-id
-AWS_SECRET_ACCESS_KEY=super-secret-key
-LOUIS_PUBLIC_KEY=well-known-public-key
-LOUIS_SECRET_KEY=secret-louis-key
-```
 
 ## Development
 
