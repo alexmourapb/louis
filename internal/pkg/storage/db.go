@@ -28,7 +28,7 @@ func Open(cfg *config.Config) (*DB, error) {
 	host := tmp[0]
 	port := tmp[1]
 
-	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=disable", host, port, cfg.PostgresUser, cfg.PostgresDatabase, cfg.PostgresPassword))
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s", host, port, cfg.PostgresUser, cfg.PostgresDatabase, cfg.PostgresPassword, cfg.PostgresSSLMode))
 
 	if err != nil {
 		return nil, err

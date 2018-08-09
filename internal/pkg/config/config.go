@@ -20,6 +20,7 @@ type Config struct {
 	PostgresPassword string `envconfig:"POSTGRES_PASSWORD" default:""`
 	PostgresAddress  string `envconfig:"POSTGRES_ADDRESS" default:"127.0.0.1:5432"`
 	PostgresDatabase string `envconfig:"POSTGRES_DATABASE" default:"postgres"`
+	PostgresSSLMode  string `envconfig:"POSTGRES_SSL_MODE" default:"disable"`
 }
 
 // App - application configs
