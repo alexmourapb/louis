@@ -54,22 +54,25 @@ type Suite struct {
 
 func (s *Suite) SetupSuite() {
 	log.Printf("Executing setup all suite")
-	var err error
 	appCtx := &AppContext{}
 	appCtx.Config = config.InitFrom("../../../.env")
 
-	if appCtx.DB, err = storage.Open(appCtx.Config); err != nil {
-		s.Fail("failed to connect to db - %v", err)
-	}
 	s.appCtx = appCtx
 	appCtx.WithWork()
 }
 
 func (s *Suite) BeforeTest(tn, sn string) {
 
+	var err error
+	if s.appCtx.DB, err = storage.Open(s.appCtx.Config); err != nil {
+		s.Fail("failed to connect to db - %v", err)
+	}
+
 	log.Printf("Executing setup for test")
 	if err := s.appCtx.DB.InitDB(); err != nil {
-		s.Fail("failed to init db - %v", err)
+		defer s.Fail("failed to init db - %v", err)
+		s.appCtx.DB.DropDB()
+		s.appCtx.DropRedis()
 	}
 
 }
@@ -77,6 +80,7 @@ func (s *Suite) BeforeTest(tn, sn string) {
 func (s *Suite) AfterTest(tn, sn string) {
 	log.Printf("Executing tear down test")
 	s.appCtx.DB.DropDB()
+	s.appCtx.DB.Close()
 	s.appCtx.DropRedis()
 }
 
@@ -123,7 +127,6 @@ func (s *Suite) TestUploadAuthorization() {
 }
 
 func (s *Suite) TestUpload() {
-	s.T().Skip()
 	gmega := gomega.NewGomegaWithT(s.T())
 
 	assert := assert.New(s.T())
@@ -178,7 +181,6 @@ func (s *Suite) TestUpload() {
 }
 
 func (s *Suite) TestUploadWithTags() {
-	s.T().Skip()
 
 	assert := assert.New(s.T())
 
@@ -199,12 +201,12 @@ func (s *Suite) TestUploadWithTags() {
 
 	assert.Empty(resp.Error, "expected response error to be empty")
 
+	assert.NotNil(resp.Payload)
 	ensureTransformations(s.T(), s.appCtx, resp)
 
 }
 
 func (s *Suite) TestClaim() {
-	s.T().Skip()
 
 	assert := assert.New(s.T())
 	assert.NoError(s.appCtx.DB.EnsureTransformations(tlist))

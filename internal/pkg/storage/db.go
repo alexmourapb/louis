@@ -3,11 +3,13 @@ package storage
 import (
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/config"
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
+	"strings"
+	// "github.com/go-pg/pg"
+	// "github.com/go-pg/pg/orm"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"log"
 	"sync"
-	"time"
 )
 
 const (
@@ -15,49 +17,30 @@ const (
 )
 
 type DB struct {
-	*pg.DB
+	*gorm.DB
 	driver string
-}
-type Tx struct {
-	*pg.Tx
 }
 
 // Open returns a DB reference for a data source.
 func Open(cfg *config.Config) (*DB, error) {
 
-	db := pg.Connect(&pg.Options{
-		User:     cfg.PostgresUser,
-		Password: cfg.PostgresPassword,
-		Addr:     cfg.PostgresAddress,
-		Database: cfg.PostgresDatabase,
-	})
+	tmp := strings.Split(cfg.PostgresAddress, ":")
+	host := tmp[0]
+	port := tmp[1]
 
-	db.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
-		query, err := event.FormattedQuery()
-		if err != nil {
-			panic(err)
-		}
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=disable", host, port, cfg.PostgresUser, cfg.PostgresDatabase, cfg.PostgresPassword))
 
-		log.Printf("POSTGRES: %s %s", time.Since(event.StartTime), query)
-	})
+	if err != nil {
+		return nil, err
+	}
+
+	db.LogMode(true)
 
 	return &DB{db, "pg"}, nil
 }
 
 // Begin starts an returns a new transaction.
-func (db *DB) Begin() (*Tx, error) {
-	tx, err := db.DB.Begin()
-	if err != nil {
-		return nil, err
-	}
-	return &Tx{tx}, nil
-}
 
-var ifNotExist = &orm.CreateTableOptions{
-	IfNotExists: true,
-}
-
-var created bool
 var lock = &sync.Mutex{}
 
 func (db *DB) InitDB() error {
@@ -67,35 +50,28 @@ func (db *DB) InitDB() error {
 	defer lock.Unlock()
 	log.Printf("INITING ->")
 	defer log.Printf("INITED ->")
-	// if created {
-	// 	log.Printf("HEY, DB is already created!")
-	// }
-	created = true
-	err := db.CreateTable(&User{}, &orm.CreateTableOptions{IfNotExists: true})
-
-	if err != nil {
-		return err
+	d := db.CreateTable(&User{})
+	if d.Error != nil {
+		return d.Error
 	}
-	err = db.CreateTable(&Image{}, &orm.CreateTableOptions{IfNotExists: true})
-
-	if err != nil {
-		return err
+	d = db.CreateTable(&Image{})
+	if d.Error != nil {
+		return d.Error
 	}
+	return db.CreateTable(&Transformation{}).Error
 
-	err = db.CreateTable(&Transformation{}, &orm.CreateTableOptions{IfNotExists: true})
-
-	if err != nil {
-		return err
-	}
-	return err
 }
 
 func (db *DB) EnsureTransformations(trans []Transformation) error {
-	_, err := db.Model(&trans).
-		OnConflict("(name) DO NOTHING").
-		// TODO: add update
-		Insert()
-	return err
+	for _, tr := range trans {
+		err := db.Set("gorm:insert_option", "ON CONFLICT (name) DO NOTHING").Create(&tr).Error
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+	// TODO: add update
+	// https://github.com/jinzhu/gorm/issues/721
 }
 
 func (db *DB) DropDB() error {
@@ -106,23 +82,21 @@ func (db *DB) DropDB() error {
 	log.Printf("DROPINNG-->>>>")
 	defer log.Printf("DROPED-->>>>")
 	if db.driver == "pg" {
-		opt := &orm.DropTableOptions{IfExists: true, Cascade: true}
-		err := db.DropTable(&Image{}, opt)
+		err := db.DropTableIfExists(&Image{}).Error
 		if err != nil {
 			log.Printf("ERROR: on droping db - %v", err)
 			err = nil
 		}
-		err = db.DropTable(&Transformation{}, opt)
+		err = db.DropTableIfExists(&Transformation{}).Error
 		if err != nil {
 			log.Printf("ERROR: on droping db - %v", err)
 			err = nil
 		}
-		err = db.DropTable(&User{}, opt)
+		err = db.DropTableIfExists(&User{}).Error
 		if err != nil {
 			log.Printf("ERROR: on droping db - %v", err)
 			err = nil
 		}
-		<-time.After(time.Second * 1)
 		// db.Close()
 		return err
 	}
@@ -133,7 +107,7 @@ func (db *DB) DropDB() error {
 func (db *DB) QueryImageByKey(key string) (*Image, error) {
 
 	img := new(Image)
-	return img, db.Model(img).Where("Key = ?", key).Select(img)
+	return img, db.Where("Key = ?", key).First(img).Error
 }
 
 func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {
@@ -142,14 +116,15 @@ func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID i
 		Key:    imageKey,
 		Tags:   tags,
 	}
-	err = db.Insert(img)
+	err = db.Create(img).Error
 	return img.ID, err
 }
 
+// TODO: cover with test
 func (db *DB) GetTransformations(imageID int64) ([]Transformation, error) {
 	var trans []Transformation
 	img := &Image{ID: imageID}
-	err := db.Select(img)
+	err := db.First(img, imageID).Error
 	if err != nil {
 		return nil, err
 	}
@@ -161,45 +136,41 @@ func (db *DB) GetTransformations(imageID int64) ([]Transformation, error) {
 		interfaceSlice[i] = d
 	}
 
-	return trans, db.Model((*Transformation)(nil)).WhereIn("Tag IN (?)", interfaceSlice...).Select(&trans)
+	return trans, db.Where("Tag IN (?)", interfaceSlice).Find(&trans).Error
 
 }
 
 func (db *DB) SetTransformsUploaded(imgID int64) error {
 
 	img := &Image{ID: imgID}
-	_, err := db.Model(img).
-		Set("Transforms_Uploaded=true, Transforms_Upload_Date=now()").
-		WherePK().
-		Update(img)
+	err := db.Model(img).
+		Updates(map[string]interface{}{"Transforms_Uploaded": true, "Transforms_Upload_Date": "now()"}).Error
 
 	return err
 }
 
 func (db *DB) SetClaimImage(imageKey string, userID int32) error {
 	img := &Image{}
-	_, err := db.Model(img).
-		Set("Approved=true, Approve_Date=now()").
+	err := db.Model(img).
 		Where("Key = ? AND User_ID = ?", imageKey, userID).
-		Update(img)
+		Updates(map[string]interface{}{"Approved": true, "Approve_Date": "now()"}).Error
+
 	return err
 }
 
 func (db *DB) DeleteImage(imageKey string) error {
 	img := &Image{}
-	_, err := db.Model(img).
-		Set("Deleted=true, Deletion_Date=now()").
+	err := db.Model(img).
 		Where("Key = ?", imageKey).
-		Update(img)
+		Updates(map[string]interface{}{"Deleted": true, "Deletion_Date": "now()"}).Error
 	return err
 
 }
 
 func (db *DB) SetImageURL(key string, userID int32, URL string) error {
 	img := &Image{}
-	_, err := db.Model(img).
-		Set("Url=?", URL).
+	err := db.Model(img).
 		Where("Key = ? AND User_ID = ?", key, userID).
-		Update(img)
+		Updates(map[string]interface{}{"Url": URL}).Error
 	return err
 }

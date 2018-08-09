@@ -1,11 +1,14 @@
 package storage
 
 import (
+	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/config"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
-	// "os"
+	"github.com/stretchr/testify/suite"
+
+	"log"
 	"testing"
 )
 
@@ -30,6 +33,35 @@ var tlist = []Transformation{
 	},
 }
 
+type Suite struct {
+	suite.Suite
+	db *DB
+}
+
+func (s *Suite) SetupSuite() {
+	log.Printf("Executing setup all suite")
+	var err error
+	s.db, err = getDB()
+	if err != nil {
+		s.Fail("Failed to open db:%v", err)
+	}
+}
+
+func (s *Suite) BeforeTest(tn, sn string) {
+	err := s.db.InitDB()
+	if err != nil {
+		s.Fail("failed to initdb: %v", err)
+	}
+}
+
+func (s *Suite) TearDownSuite() {
+	s.db.Close()
+}
+
+func (s *Suite) AfterTest(tn, sn string) {
+	s.db.DropDB()
+}
+
 func getDB() (*DB, error) {
 	cfg := config.InitFrom("../../../.env")
 	return Open(cfg)
@@ -40,6 +72,7 @@ func failIfError(t *testing.T, err error, msg string) {
 		t.Fatalf("%s - %v", msg, err)
 	}
 }
+
 func TestInitDB(t *testing.T) {
 	var db, err = getDB()
 	defer db.DropDB()
@@ -49,16 +82,11 @@ func TestInitDB(t *testing.T) {
 	failIfError(t, db.InitDB(), "failed to create initial tables")
 }
 
-func TestDeleteImage(t *testing.T) {
-	assert := assert.New(t)
-	var db, err = getDB()
-	defer db.DropDB()
+func (s *Suite) TestDeleteImage() {
+	assert := s.Assertions
+	var db = s.db
 
-	failIfError(t, err, "failed to open db")
-
-	failIfError(t, db.InitDB(), "failed to create tables")
-
-	_, err = db.AddImage("key", 1)
+	_, err := db.AddImage("key", 1)
 
 	assert.NoError(err)
 
@@ -70,63 +98,49 @@ func TestDeleteImage(t *testing.T) {
 	assert.True(img.Deleted)
 }
 
-func TestClaimImage(t *testing.T) {
-	var db, err = getDB()
-	defer db.DropDB()
-
-	failIfError(t, err, "failed to open db")
-
-	failIfError(t, db.InitDB(), "failed to create tables")
-
+func (s *Suite) TestClaimImage() {
+	var db = s.db
+	assert := assert.New(s.T())
 	var (
 		imageKey = "imageKey"
 		userID   = int32(2)
 	)
-	_, err = db.AddImage(imageKey, userID)
+	_, err := db.AddImage(imageKey, userID)
 
-	failIfError(t, err, "failed to create image")
+	assert.NoError(err, "failed to create image")
 
-	failIfError(t, db.SetClaimImage(imageKey, userID), "failed to create claim transaction")
+	assert.NoError(db.SetClaimImage(imageKey, userID), "failed to create claim transaction")
 
 	img, err := db.QueryImageByKey(imageKey)
 
-	assert.NoError(t, err)
-	assert.True(t, img.Approved)
+	assert.NoError(err)
+	assert.True(img.Approved)
 }
 
-func TestSetImageURL(t *testing.T) {
+func (s *Suite) TestSetImageURL() {
 
-	var db, err = getDB()
-	defer db.DropDB()
-
-	failIfError(t, err, "failed to open db")
-
-	failIfError(t, db.InitDB(), "failed to create tables")
-
+	var db = s.db
+	assert := assert.New(s.T())
 	var (
 		imageKey = "imageKey"
 		userID   = int32(2)
 		imageURL = "https://test.hb.mcs.ru/test.jpg"
 	)
-	_, err = db.AddImage(imageKey, userID)
+	_, err := db.AddImage(imageKey, userID)
 
-	assert.NoError(t, err)
+	assert.NoError(err)
 
-	failIfError(t, db.SetImageURL(imageKey, userID, imageURL), "failed to set image url")
+	assert.NoError(db.SetImageURL(imageKey, userID, imageURL), "failed to set image url")
 
 	img, err := db.QueryImageByKey(imageKey)
 
-	assert.Equal(t, imageURL, img.URL)
+	assert.Equal(imageURL, img.URL)
 
 }
 
-func TestAddImageTags(t *testing.T) {
-	var db, err = getDB()
-	defer db.DropDB()
-
-	failIfError(t, err, "failed to open db")
-
-	failIfError(t, db.InitDB(), "failed to create tables")
+func (s *Suite) TestAddImageTags() {
+	var db = s.db
+	assert := assert.New(s.T())
 
 	var (
 		imageKey = "imageKey"
@@ -134,54 +148,45 @@ func TestAddImageTags(t *testing.T) {
 		tags     = []string{"tag1", "tag2", "super-tag"}
 	)
 
-	_, err = db.AddImage(imageKey, userID, tags...)
-	failIfError(t, err, "failed to create image")
+	_, err := db.AddImage(imageKey, userID, tags...)
+	assert.NoError(err, "failed to create image")
 
 	img, err := db.QueryImageByKey(imageKey)
-	assert.NoError(t, err)
+	assert.NoError(err)
 
-	assert.ElementsMatch(t, img.Tags, tags)
+	assert.ElementsMatch(img.Tags, tags)
 }
 
-func TestAddImage(t *testing.T) {
-	t.Run("without tags", getAddImageTest("this_is_image_key", 1))
-	t.Run("with tags", getAddImageTest("this_is_image_key", 1, "this-is-tag", "tag2", "super-tag"))
+func (s *Suite) TestAddImageWithTags() {
+	getAddImageTest("this_is_image_key", 1, "this-is-tag", "tag2", "super-tag")(s)
+}
+func (s *Suite) TestAddImageWithoutTags() {
+	getAddImageTest("this_is_image_key", 1)(s)
 }
 
-func getAddImageTest(key string, userID int32, tags ...string) func(*testing.T) {
-	return func(t *testing.T) {
-		var db, err = getDB()
-		defer db.DropDB()
-
-		failIfError(t, err, "failed to open db")
-
-		failIfError(t, db.InitDB(), "failed to create tables")
-
+func getAddImageTest(key string, userID int32, tags ...string) func(*Suite) {
+	return func(s *Suite) {
+		db := s.db
+		assert := assert.New(s.T())
 		imageID, err := db.AddImage(key, userID, tags...)
 
-		assert.Equal(t, int64(1), imageID, "imageID should be 1")
+		assert.Equal(int64(1), imageID, "imageID should be 1")
 
 		img, err := db.QueryImageByKey(key)
 
-		failIfError(t, err, "failed to find created row")
+		assert.NoError(err, "failed to find created row")
 
-		assert.Equal(t, imageID, img.ID)
-		assert.Equal(t, key, img.Key)
-		assert.Equal(t, userID, img.UserID)
-		assert.ElementsMatch(t, tags, img.Tags)
+		assert.Equal(imageID, img.ID)
+		assert.Equal(key, img.Key)
+		assert.Equal(userID, img.UserID)
+		assert.ElementsMatch(tags, img.Tags)
 
 	}
 }
 
-func TestGetTransformations(t *testing.T) {
-	assert := assert.New(t)
-
-	var db, err = getDB()
-	defer db.DropDB()
-
-	failIfError(t, err, "failed to open db")
-
-	failIfError(t, db.InitDB(), "failed to create tables")
+func (s *Suite) TestGetTransformations() {
+	db := s.db
+	assert := assert.New(s.T())
 
 	assert.NoError(db.EnsureTransformations(tlist))
 	const (
@@ -199,40 +204,29 @@ func TestGetTransformations(t *testing.T) {
 	assert.Equal(1, len(trans))
 }
 
-func TestEnsureTransformations(t *testing.T) {
+func (s *Suite) TestEnsureTransformations(t *testing.T) {
 	assert := assert.New(t)
-
-	var db, err = getDB()
-	defer db.DropDB()
-
-	failIfError(t, err, "failed to open db")
-
-	failIfError(t, db.InitDB(), "failed to create tables")
+	db := s.db
 
 	assert.NoError(db.EnsureTransformations(tlist))
 
-	count, err := db.Model((*Transformation)(nil)).Count()
+	var count int
+	err := db.Model(&Transformation{}).Count(&count).Error
 
 	assert.NoError(err)
 
 	assert.Equal(len(tlist), count)
-	assert.NoError(db.EnsureTransformations(tlist))
+	assert.Equal(fmt.Errorf("sql: no rows in result set"), db.EnsureTransformations(tlist))
 
-	count, err = db.Model((*Transformation)(nil)).Count()
+	err = db.Model(&Transformation{}).Count(&count).Error
 
 	assert.Equal(len(tlist), count)
 
 }
 
-func TestQueryImageByKey(t *testing.T) {
-	assert := assert.New(t)
-
-	var db, err = getDB()
-	defer db.DropDB()
-
-	failIfError(t, err, "failed to open db")
-
-	failIfError(t, db.InitDB(), "failed to create tables")
+func (s *Suite) TestQueryImageByKey(t *testing.T) {
+	db := s.db
+	assert := assert.New(s.T())
 
 	const (
 		imgKey       = "img_key"
