@@ -21,7 +21,7 @@ type CleanupTaskCtx struct {
 }
 
 func (appCtx *CleanupTaskCtx) Cleanup(job *work.Job) error {
-	// appCtx.AppContext = GetGlobalCtx()
+	appCtx.AppContext = GetGlobalCtx()
 	log.Printf("CLEANUP_POOL: recieved task with args [%v]", job.Args)
 
 	var imgKey = job.ArgString("key")
@@ -45,9 +45,9 @@ func (appCtx *CleanupTaskCtx) Cleanup(job *work.Job) error {
 
 func InitPool(appCtx *AppContext, redisPool *redis.Pool) *work.WorkerPool {
 
-	// SetGlobalCtx(appCtx)
+	SetGlobalCtx(appCtx)
 
-	pool := work.NewWorkerPoolWithDefaultCtx(CleanupTaskCtx{}, &CleanupTaskCtx{AppContext: appCtx}, appCtx.Config.CleanupPoolConcurrency, CleanupNamespace, redisPool)
+	pool := work.NewWorkerPool(CleanupTaskCtx{}, appCtx.Config.CleanupPoolConcurrency, CleanupNamespace, redisPool)
 
 	pool.Job(CleanupTask, (*CleanupTaskCtx).Cleanup)
 
