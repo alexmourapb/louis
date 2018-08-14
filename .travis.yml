@@ -11,6 +11,9 @@ services:
   - redis
   - postgres
 
+addons:
+  postgresql: "9.6"
+
 env:
   - REDIS_URL=127.0.0.1:6379 POSTGRES_DATABASE=travis_ci_test
 
