@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/KazanExpress/louis/internal/pkg/transformations"
+	"github.com/lib/pq"
 	"github.com/rs/xid"
 	"image"
 	_ "image/jpeg"
@@ -200,11 +201,23 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 		if failOnError(w, err, "error on creating an Image object from bytes", http.StatusBadRequest) {
 			return
 		}
-
 		imgKey := xid.New().String()
 
+		keyArg := r.FormValue("key")
+		if keyArg != "" {
+			imgKey = keyArg
+		}
+
 		imgID, err := appCtx.DB.AddImage(imgKey, userID, tags...)
-		failOnError(w, err, "error on creating db record", http.StatusInternalServerError)
+		if err != nil {
+
+			if pger, ok := err.(*pq.Error); ok && pger.Constraint == "images_key_key" {
+				failOnError(w, err, "image with such key is already exists", http.StatusBadRequest)
+			} else {
+				failOnError(w, err, "error on creating db record", http.StatusInternalServerError)
+			}
+			return
+		}
 
 		transformsURLs, err := appCtx.uploadPictureAndTransforms(imgID, imgKey, &bufferBytes)
 

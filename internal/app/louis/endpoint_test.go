@@ -180,6 +180,51 @@ func (s *Suite) TestUpload() {
 	// appCtx.DropAll()
 }
 
+func (s *Suite) TestUploadWithName() {
+	const mykey = "my_key"
+
+	path, _ := os.Getwd()
+	path = filepath.Join(path, "../../../test/data/picture.jpg")
+	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": " tag1 , tag2 , super-tag", "key": mykey}, "file", path)
+	s.NoError(err)
+
+	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+	response := httptest.NewRecorder()
+	UploadHandler(s.appCtx)(response, request)
+
+	s.Equal(http.StatusOK, response.Code, "should respond with 200 OK")
+	var resp ResponseTemplate
+
+	s.NoError(json.Unmarshal(response.Body.Bytes(), &resp))
+	s.Empty(resp.Error)
+
+	s.NotNil(resp.Payload)
+
+	var payload = resp.Payload.(map[string]interface{})
+	s.Equal(mykey, payload["key"])
+}
+
+func (s *Suite) TestUploadWithNameFail() {
+	const mykey = "my_key"
+
+	path, _ := os.Getwd()
+	path = filepath.Join(path, "../../../test/data/picture.jpg")
+	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": " tag1 , tag2 , super-tag", "key": mykey}, "file", path)
+	s.NoError(err)
+
+	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+	response := httptest.NewRecorder()
+	UploadHandler(s.appCtx)(response, request)
+
+	s.Equal(http.StatusOK, response.Code, "should respond with 200 OK")
+
+	response = httptest.NewRecorder()
+	UploadHandler(s.appCtx)(response, request)
+
+	s.Equal(http.StatusBadRequest, response.Code)
+
+}
+
 func (s *Suite) TestUploadWithTags() {
 
 	assert := assert.New(s.T())

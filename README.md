@@ -24,6 +24,7 @@ Headers:
 Multipart body:
     file: image
     tags: tag1, tag2, tag3
+    key: "name of image[optional/usefull on migration]"
 ```
 
 Response:
