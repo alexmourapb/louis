@@ -1,5 +1,6 @@
 language: go
 sudo: enabled
+dist: trusty
 before_script:
   - sudo chmod 777 test/data
   # - sudo chown www-data test/data
