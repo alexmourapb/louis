@@ -53,10 +53,6 @@ func InitFrom(envPath string) *Config {
 	if err != nil {
 		panic(err)
 	}
-	// flag.StringVar(&App.RedisURL, "redis-url", ":6379", "adress of redis instance")
-	// flag.StringVar(&App.DataSourceName, "data-source-name", "db.sqlite", "database uri string")
-	// flag.UintVar(&App.CleanupPoolConcurrency, "cleanup-pool-concurrency", 10, "max number of concurrent tasks cleaning up trash images")
-	// flag.IntVar(&App.CleanUpDelay, "cleanup-delay", 1, "after this delay unclaimed images will be deleted")
 
 	return App
 }
