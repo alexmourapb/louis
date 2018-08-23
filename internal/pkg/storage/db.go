@@ -47,15 +47,8 @@ func (db *DB) InitDB() error {
 
 	lock.Lock()
 	defer lock.Unlock()
-	d := db.CreateTable(&User{})
-	if d.Error != nil {
-		return d.Error
-	}
-	d = db.CreateTable(&Image{})
-	if d.Error != nil {
-		return d.Error
-	}
-	return db.CreateTable(&Transformation{}).Error
+	d := db.AutoMigrate(&User{}, &Image{}, &Transformation{})
+	return d.Error
 
 }
 
