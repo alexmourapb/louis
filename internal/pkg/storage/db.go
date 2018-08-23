@@ -10,6 +10,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"log"
 	"sync"
+	"time"
 )
 
 const (
@@ -148,7 +149,7 @@ func (db *DB) SetClaimImages(imageKeys []string, userID int32) error {
 	img := &Image{}
 	err := db.Model(img).
 		Where("Key in (?) AND User_ID = ?", imageKeys, userID).
-		Updates(map[string]interface{}{"Approved": true, "Approve_Date": "now()"}).Error
+		Updates(map[string]interface{}{"Approved": true, "Approve_Date": time.Now()}).Error
 
 	return err
 }
@@ -157,7 +158,7 @@ func (db *DB) SetClaimImage(imageKey string, userID int32) error {
 	img := &Image{}
 	err := db.Model(img).
 		Where("Key = ? AND User_ID = ?", imageKey, userID).
-		Updates(map[string]interface{}{"Approved": true, "Approve_Date": "now()"}).Error
+		Updates(map[string]interface{}{"Approved": true, "Approve_Date": time.Now()}).Error
 
 	return err
 }
@@ -166,7 +167,7 @@ func (db *DB) DeleteImage(imageKey string) error {
 	img := &Image{}
 	err := db.Model(img).
 		Where("Key = ?", imageKey).
-		Updates(map[string]interface{}{"Deleted": true, "Deletion_Date": "now()"}).Error
+		Updates(map[string]interface{}{"Deleted": true, "Deletion_Date": time.Now()}).Error
 	return err
 
 }
