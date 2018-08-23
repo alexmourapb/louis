@@ -9,7 +9,7 @@
             "type": "fit"
         }, {
             "name": "t_shop_cover_low",
-            "tag": "shop_cover",
+            "tag": "shop",
             "width": 1240,
             "height": 200,
             "quality": 20,
@@ -17,7 +17,7 @@
         },
         { 
             "name": "t_product_80_high",
-            "tag": "product_image",
+            "tag": "product",
             "type": "fit",
             "width":80,
             "height":80,
@@ -25,7 +25,7 @@
         },
         { 
             "name": "t_product_240_high",
-            "tag": "product_image",
+            "tag": "product",
             "type": "fit",
             "width":240,
             "height":240,
@@ -34,7 +34,7 @@
         },
         { 
             "name": "t_product_540_high",
-            "tag": "product_image",
+            "tag": "product",
             "type": "fit",
             "width":540,
             "height":540,
@@ -42,7 +42,7 @@
         },
         { 
             "name": "t_product_low",
-            "tag": "product_image",
+            "tag": "product",
             "type": "fit",
             "width":800,
             "height":800,
@@ -50,7 +50,7 @@
         },
         { 
             "name": "t_product_80_low",
-            "tag": "product_image",
+            "tag": "product",
             "type": "fit",
             "width":80,
             "height":80,
@@ -58,7 +58,7 @@
         },
         { 
             "name": "t_product_240_low",
-            "tag": "product_image",
+            "tag": "product",
             "type": "fit",
             "width":240,
             "height":240,
@@ -66,7 +66,7 @@
         },
         { 
             "name": "t_product_540_low",
-            "tag": "product_image",
+            "tag": "product",
             "type": "fit",
             "width":540,
             "height":540,
