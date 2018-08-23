@@ -262,6 +262,12 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
+		if img.Keys == nil || len(img.Keys) == 0 {
+			log.Printf("ERROR: keys not provided")
+			respondWithJSON(w, "no keys provided", nil, http.StatusBadRequest)
+			return
+		}
+
 		images, err := appCtx.DB.GetImagesWithKeys(img.Keys)
 		if failOnError(w, err, "failed to get images with keys", http.StatusBadRequest) {
 			return
