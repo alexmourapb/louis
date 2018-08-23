@@ -160,6 +160,65 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 	}
 }
 
+func (appCtx *AppContext) parseAndUpload(w http.ResponseWriter, r *http.Request, userID int32) (returnedError bool, transformsURLs map[string]string, imgKey string) {
+
+	returnedError = true
+
+	r.ParseMultipartForm(appCtx.Config.MaxImageSize)
+	file, _, err := r.FormFile("file")
+	defer file.Close()
+
+	if failOnError(w, err, "error on reading file from multipart", http.StatusBadRequest) {
+		return
+	}
+
+	tagsStr := strings.Replace(r.FormValue("tags"), " ", "", -1)
+	var tags []string
+	if tagsStr != "" {
+
+		tags = strings.Split(tagsStr, ",")
+		for _, tag := range tags {
+			if len(tag) > storage.TagLength {
+				respondWithJSON(w, fmt.Sprintf("tag should not be longer than %v", storage.TagLength), nil, http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	var buffer bytes.Buffer
+	io.Copy(&buffer, file)
+	bufferBytes := buffer.Bytes()
+
+	_, _, err = image.Decode(bytes.NewReader(bufferBytes))
+	if failOnError(w, err, "error on creating an Image object from bytes", http.StatusBadRequest) {
+		return
+	}
+	imgKey = xid.New().String()
+
+	keyArg := r.FormValue("key")
+	if keyArg != "" {
+		imgKey = keyArg
+	}
+
+	imgID, err := appCtx.DB.AddImage(imgKey, userID, tags...)
+	if err != nil {
+
+		if pger, ok := err.(*pq.Error); ok && pger.Constraint == "images_key_key" {
+			failOnError(w, err, "image with such key is already exists", http.StatusBadRequest)
+		} else {
+			failOnError(w, err, "error on creating db record", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	transformsURLs, err = appCtx.uploadPictureAndTransforms(imgID, imgKey, &bufferBytes)
+
+	if failOnError(w, err, "failed to upload transforms", http.StatusInternalServerError) {
+		return
+	}
+	return false, transformsURLs, imgKey
+}
+
 func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -169,56 +228,8 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		r.ParseMultipartForm(appCtx.Config.MaxImageSize)
-		file, _, err := r.FormFile("file")
-
-		if failOnError(w, err, "error on reading file from multipart", http.StatusBadRequest) {
-			return
-		}
-
-		tagsStr := strings.Replace(r.FormValue("tags"), " ", "", -1)
-		var tags []string
-		if tagsStr != "" {
-
-			tags = strings.Split(tagsStr, ",")
-			for _, tag := range tags {
-				if len(tag) > storage.TagLength {
-					respondWithJSON(w, fmt.Sprintf("tag should not be longer than %v", storage.TagLength), nil, http.StatusBadRequest)
-					return
-				}
-			}
-		}
-
-		defer file.Close()
-		var buffer bytes.Buffer
-		io.Copy(&buffer, file)
-		bufferBytes := buffer.Bytes()
-
-		_, _, err = image.Decode(bytes.NewReader(bufferBytes))
-		if failOnError(w, err, "error on creating an Image object from bytes", http.StatusBadRequest) {
-			return
-		}
-		imgKey := xid.New().String()
-
-		keyArg := r.FormValue("key")
-		if keyArg != "" {
-			imgKey = keyArg
-		}
-
-		imgID, err := appCtx.DB.AddImage(imgKey, userID, tags...)
-		if err != nil {
-
-			if pger, ok := err.(*pq.Error); ok && pger.Constraint == "images_key_key" {
-				failOnError(w, err, "image with such key is already exists", http.StatusBadRequest)
-			} else {
-				failOnError(w, err, "error on creating db record", http.StatusInternalServerError)
-			}
-			return
-		}
-
-		transformsURLs, err := appCtx.uploadPictureAndTransforms(imgID, imgKey, &bufferBytes)
-
-		if failOnError(w, err, "failed to upload transforms", http.StatusInternalServerError) {
+		returnedError, transformsURLs, imgKey := appCtx.parseAndUpload(w, r, userID)
+		if returnedError {
 			return
 		}
 
@@ -286,6 +297,33 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 
 		log.Printf("INFO: images with keys [%v] claimed", img.Keys)
 		respondWithJSON(w, "", "ok", 200)
+	})
+}
+
+func UploadWithClaimHandler(appCtx *AppContext) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		userID, err := authorizeBySecretKey(r.Header.Get("Authorization"))
+		if err != nil {
+			respondWithJSON(w, err.Error(), nil, http.StatusUnauthorized)
+			return
+		}
+
+		returnedError, transformsURLs, imgKey := appCtx.parseAndUpload(w, r, userID)
+		if returnedError {
+			return
+		}
+
+		if failOnError(w, setImageURL(appCtx, imgKey, transformsURLs[OriginalTransformName], userID), "failed to set image url", http.StatusInternalServerError) {
+			return
+		}
+
+		if failOnError(w, appCtx.DB.SetClaimImage(imgKey, userID), "failed to claim image", http.StatusInternalServerError) {
+			return
+		}
+
+		log.Printf("INFO: image with key %v and %v transforms uploaded and claimed", imgKey, len(transformsURLs))
+		respondWithJSON(w, "", makeTransformsPayload(imgKey, transformsURLs), 200)
 	})
 }
 

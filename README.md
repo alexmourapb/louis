@@ -66,6 +66,24 @@ Response:
 }
 ```
 
+
+#### Upload image with claim
+
+Request:
+```
+POST /uploadWithClaim
+Headers:
+    Authorization: LOUIS_SECRET_KEY
+    Content-Type: multipart/form-data
+Multipart body:
+    file: image
+    tags: tag1, tag2, tag3
+    key: "name of image[optional/usefull on migration]"
+```
+
+Response the same as in `/upload`
+
+
 ## Command line arguments
 
 ```
@@ -105,6 +123,7 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=1234
 POSTGRES_DATABASE=postgres
 POSTGRES_SSL_MODE=disable <disable/enable>
+MAX_IMAGE_SIZE=5242880 <in bytes>
 ```
 
 

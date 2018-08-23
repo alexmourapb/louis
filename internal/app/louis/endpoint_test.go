@@ -177,7 +177,48 @@ func (s *Suite) TestUpload() {
 
 	}, 10, 1).Should(gomega.BeTrue())
 
-	// appCtx.DropAll()
+}
+
+func (s *Suite) TestUploadWithClaim() {
+	assert := assert.New(s.T())
+	appCtx := s.appCtx
+
+	appCtx.Config.CleanUpDelay = 0
+	appCtx = appCtx.WithWork()
+
+	path, _ := os.Getwd()
+	path = filepath.Join(path, "./../../../test/data/picture.jpg")
+	request, err := newFileUploadRequest("http://localhost:8000/uploadWithClaim", nil, "file", path)
+	assert.NoError(err, "failed to create file upload request")
+
+	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))
+
+	response := httptest.NewRecorder()
+	UploadWithClaimHandler(appCtx)(response, request)
+
+	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
+
+	var resp ResponseTemplate
+	assert.NoError(json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
+
+	assert.Empty(resp.Error, "expected response error to be empty")
+
+	assert.NotNil(resp.Payload)
+
+	var payload = resp.Payload.(map[string]interface{})
+
+	url := payload["originalUrl"].(string)
+	imageKey := payload["key"].(string)
+
+	if !strings.HasPrefix(url, "http") || !strings.HasSuffix(url, ".jpg") {
+		s.Failf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
+	}
+
+	img, err := appCtx.DB.QueryImageByKey(imageKey)
+	assert.NoError(err)
+	assert.True(img.Approved)
+	assert.Equal(url, img.URL, "url from response and in database should be the same")
+
 }
 
 func (s *Suite) TestUploadWithName() {

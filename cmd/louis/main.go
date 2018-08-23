@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/KazanExpress/louis/internal/app/louis"
 	"github.com/KazanExpress/louis/internal/pkg/config"
 	"time"
@@ -70,6 +69,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
 	router.Handle("/upload", louis.UploadHandler(appCtx)).Methods("POST")
+	router.Handle("/uploadWithClaim", louis.UploadWithClaimHandler(appCtx)).Methods("POST")
 	router.HandleFunc("/claim", louis.ClaimHandler(appCtx)).Methods("POST")
 	router.HandleFunc("/healthz", louis.GetHealth(appCtx)).Methods("GET")
 	// registering SIGTERM handling
