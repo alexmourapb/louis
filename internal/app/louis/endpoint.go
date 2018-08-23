@@ -22,10 +22,7 @@ import (
 )
 
 const (
-	MaxImageSize           = 5 * 1024 * 1024 // bytes
-	HighCompressionQuality = 30
-	LowCompressionQuality  = 15
-	OriginalTransformName  = "original"
+	OriginalTransformName = "original"
 )
 
 type ImageData struct {
@@ -172,7 +169,7 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
-		r.ParseMultipartForm(MaxImageSize)
+		r.ParseMultipartForm(appCtx.Config.MaxImageSize)
 		file, _, err := r.FormFile("file")
 
 		if failOnError(w, err, "error on reading file from multipart", http.StatusBadRequest) {

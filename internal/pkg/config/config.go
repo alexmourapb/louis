@@ -21,6 +21,9 @@ type Config struct {
 	PostgresAddress  string `envconfig:"POSTGRES_ADDRESS" default:"127.0.0.1:5432"`
 	PostgresDatabase string `envconfig:"POSTGRES_DATABASE" default:"postgres"`
 	PostgresSSLMode  string `envconfig:"POSTGRES_SSL_MODE" default:"disable"`
+
+	// MaxImageSize maximum image size in bytes, default is 5MB
+	MaxImageSize int64 `envconfig:"MAX_IMAGE_SIZE" default:"5242880"`
 }
 
 // App - application configs
