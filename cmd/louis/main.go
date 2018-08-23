@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/KazanExpress/louis/internal/app/louis"
 	"github.com/KazanExpress/louis/internal/pkg/config"
 	"time"
@@ -53,7 +54,7 @@ func initApp(appCtx *louis.AppContext) {
 	}
 
 	err = appCtx.DB.EnsureTransformations(tlist.Transformations)
-	if err != nil {
+	if err != nil && err.Error() != "sql: no rows in result set" {
 		log.Fatalf("FATAL: failed to ensure transformations: %v", err)
 	}
 
