@@ -54,8 +54,8 @@ func initApp(appCtx *louis.AppContext) {
 	}
 
 	err = appCtx.DB.EnsureTransformations(tlist.Transformations)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		log.Fatalf("FATAL: failed to ensure transformations: %v", err)
+	if err != nil {
+		log.Printf("ERROR: failed to ensure transformations: %v", err)
 	}
 
 	appCtx.WithWork()
