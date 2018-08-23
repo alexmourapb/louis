@@ -45,6 +45,10 @@ func UploadFileWithContext(ctx context.Context, file io.Reader, objectKey string
 		ContentType: aws.String("image/jpeg"),
 	})
 
+	if err != nil {
+		return "", err
+	}
+
 	return out.Location, err
 }
 
