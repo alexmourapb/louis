@@ -17,7 +17,7 @@ addons:
     - postgresql-client-9.6
 
 env:
-  - REDIS_URL=127.0.0.1:6379 POSTGRES_DATABASE=travis_ci_test
+  - REDIS_URL=127.0.0.1:6379 POSTGRES_DATABASE=travis_ci_test CLEANUP_DELAY=1 
 
 before_install:
   - go get golang.org/x/tools/cmd/cover
