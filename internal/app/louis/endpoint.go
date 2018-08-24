@@ -281,6 +281,12 @@ func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 			return
 		}
 
+		if len(*images) != len(img.Keys) {
+			log.Printf("ERROR: only %v images found out of %v", len(*images), len(img.Keys))
+			respondWithJSON(w, "not all images were found", nil, http.StatusBadRequest)
+			return
+		}
+
 		for _, image := range *images {
 
 			if image.Deleted {
