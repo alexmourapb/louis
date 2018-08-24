@@ -130,7 +130,7 @@ MAX_IMAGE_SIZE=5242880 <in bytes>
 ## Development
 
 If you have problems with installing dependencies or building project. 
-It's highly probably that they caused by [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) or [h2non/bimg](https://github.com/h2non/bimg). Please check prerequisites and installation guides for these libs.
+It's highly probably that they caused by [h2non/bimg](https://github.com/h2non/bimg). Please check prerequisites and installation guides for these libs.
 
 ```bash
 # libvips is needed in order to install bimg
