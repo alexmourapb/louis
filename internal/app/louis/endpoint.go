@@ -9,6 +9,7 @@ import (
 	"github.com/KazanExpress/louis/internal/pkg/transformations"
 	"github.com/lib/pq"
 	"github.com/rs/xid"
+	"gopkg.in/h2non/bimg.v1"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -22,7 +23,8 @@ import (
 )
 
 const (
-	OriginalTransformName = "original"
+	OriginalTransformName    = "original"
+	OriginalTransformQuality = 70
 )
 
 type ImageData struct {
@@ -95,8 +97,12 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 	wg.Add(1 + len(trans))
 	go func(ctx context.Context) {
 		defer wg.Done()
-
-		transformURLs[OriginalTransformName], err = storage.UploadFileWithContext(ctx, bytes.NewReader(*buffer), makePath(OriginalTransformName, imgKey))
+		buf, err := bimg.NewImage(*buffer).Process(bimg.Options{Quality: OriginalTransformQuality})
+		if err != nil {
+			ers <- err
+			return
+		}
+		transformURLs[OriginalTransformName], err = storage.UploadFileWithContext(ctx, bytes.NewReader(buf), makePath(OriginalTransformName, imgKey))
 		if err != nil {
 			ers <- err
 		}
