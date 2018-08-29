@@ -98,13 +98,6 @@ Response the same as in `/upload`
 docker run kexpress/louis
 ```
 
-### Use volumes to store sqlite db
-
-```bash
-docker run -e DATA_SOURCE_NAME=/data/db.sqlite -v /my-safe/path/to/sqlite-dir:/data kexpress/louis
-
-```
-
 ## Environment variables
 
 ```env
