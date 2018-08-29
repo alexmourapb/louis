@@ -93,6 +93,13 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 	var ers = make(chan error, len(trans)+1)
 	var transformURLs = make(map[string]string)
 
+	var mapLock = sync.Mutex{}
+	var addTransformURL = func(name, url string) {
+		mapLock.Lock()
+		transformURLs[name] = url
+		mapLock.Unlock()
+	}
+
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	wg.Add(1 + len(trans))
 	go func(ctx context.Context) {
@@ -102,7 +109,8 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 			ers <- err
 			return
 		}
-		transformURLs[OriginalTransformName], err = storage.UploadFileWithContext(ctx, bytes.NewReader(buf), makePath(OriginalTransformName, imgKey))
+		url, err := storage.UploadFileWithContext(ctx, bytes.NewReader(buf), makePath(OriginalTransformName, imgKey))
+		addTransformURL(OriginalTransformName, url)
 		if err != nil {
 			ers <- err
 		}
@@ -120,7 +128,8 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 					ers <- err
 					return
 				}
-				transformURLs[tran.Name], err = storage.UploadFileWithContext(ctx, bytes.NewReader(result), makePath(tran.Name, imgKey))
+				url, err := storage.UploadFileWithContext(ctx, bytes.NewReader(result), makePath(tran.Name, imgKey))
+				addTransformURL(tran.Name, url)
 				if err != nil {
 					ers <- err
 				}
@@ -136,7 +145,9 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 					ers <- err
 					return
 				}
-				transformURLs[tran.Name], err = storage.UploadFileWithContext(ctx, bytes.NewReader(result), makePath(tran.Name, imgKey))
+				url, err := storage.UploadFileWithContext(ctx, bytes.NewReader(result), makePath(tran.Name, imgKey))
+				addTransformURL(tran.Name, url)
+
 				if err != nil {
 					ers <- err
 				}
