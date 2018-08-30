@@ -180,6 +180,10 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 func (appCtx *AppContext) parseAndUpload(w http.ResponseWriter, r *http.Request, userID int32) (returnedError bool, transformsURLs map[string]string, imgKey string) {
 
 	returnedError = true
+	if r.ContentLength > appCtx.Config.MaxImageSize {
+		respondWithJSON(w, fmt.Sprintf("image size should be less than  %v bytes", appCtx.Config.MaxImageSize), nil, http.StatusBadRequest)
+		return
+	}
 
 	r.ParseMultipartForm(appCtx.Config.MaxImageSize)
 	file, _, err := r.FormFile("file")
