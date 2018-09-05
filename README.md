@@ -117,6 +117,8 @@ POSTGRES_PASSWORD=1234
 POSTGRES_DATABASE=postgres
 POSTGRES_SSL_MODE=disable <disable/enable>
 MAX_IMAGE_SIZE=5242880 <in bytes>
+CORS_ALLOW_ORIGIN=*
+CORS_ALLOW_HEADERS=Authorization,Content-Type,Access-Content-Allow-Origin
 ```
 
 
