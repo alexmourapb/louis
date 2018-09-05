@@ -4,11 +4,7 @@ import (
 	"encoding/json"
 	"github.com/KazanExpress/louis/internal/app/louis"
 	"github.com/KazanExpress/louis/internal/pkg/config"
-	"time"
-	// "github.com/KazanExpress/louis/internal/pkg/queue"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
-	// "github.com/gocraft/work"
-	// "github.com/gomodule/redigo/redis"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/cors"
@@ -17,13 +13,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	// "strings"
+	"time"
 )
 
-func addAcessControlAllowOriginHeader(next http.Handler) http.Handler {
+func addAccessControlAllowOriginHeader(cfg *config.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		w.Header().Add("Access-Control-Allow-Headers", "Authorization,Content-Type,Access-Content-Allow-Origin")
+		w.Header().Add("Access-Control-Allow-Origin", cfg.CORSAllowOrigin)
+		w.Header().Add("Access-Control-Allow-Headers", cfg.CORSAllowHeaders)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -102,6 +98,6 @@ func main() {
 	})
 	log.Printf("INFO: app started!")
 
-	log.Fatal(http.ListenAndServe(":8000", addAcessControlAllowOriginHeader(crs.Handler(router))))
+	log.Fatal(http.ListenAndServe(":8000", addAccessControlAllowOriginHeader(appCtx.Config, crs.Handler(router))))
 
 }

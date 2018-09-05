@@ -22,6 +22,8 @@ type Config struct {
 	PostgresDatabase string `envconfig:"POSTGRES_DATABASE" default:"postgres"`
 	PostgresSSLMode  string `envconfig:"POSTGRES_SSL_MODE" default:"disable"`
 
+	CORSAllowOrigin  string `envconfig:"CORS_ALLOW_ORIGIN" default:"*"`
+	CORSAllowHeaders string `envconfig:"CORS_ALLOW_HEADERS" default:"Authorization,Content-Type,Access-Content-Allow-Origin"`
 	// MaxImageSize maximum image size in bytes, default is 5MB
 	MaxImageSize int64 `envconfig:"MAX_IMAGE_SIZE" default:"5242880"`
 }
