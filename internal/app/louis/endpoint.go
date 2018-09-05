@@ -187,11 +187,11 @@ func (appCtx *AppContext) parseAndUpload(w http.ResponseWriter, r *http.Request,
 
 	r.ParseMultipartForm(appCtx.Config.MaxImageSize)
 	file, _, err := r.FormFile("file")
-	defer file.Close()
 
 	if failOnError(w, err, "error on reading file from multipart", http.StatusBadRequest) {
 		return
 	}
+	defer file.Close()
 
 	tagsStr := strings.Replace(r.FormValue("tags"), " ", "", -1)
 	var tags []string
