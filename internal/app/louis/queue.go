@@ -22,7 +22,7 @@ type CleanupTaskCtx struct {
 
 func (appCtx *CleanupTaskCtx) Cleanup(job *work.Job) error {
 	appCtx.AppContext = GetGlobalCtx()
-	log.Printf("CLEANUP_POOL: recieved task with args [%v]", job.Args)
+	log.Printf("CLEANUP_POOL: received task with args [%v]", job.Args)
 
 	var imgKey = job.ArgString("key")
 
