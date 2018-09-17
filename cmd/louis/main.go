@@ -7,6 +7,7 @@ import (
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"io/ioutil"
 	"log"
@@ -97,6 +98,11 @@ func main() {
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"}, // Allowing only get, just an example
 	})
 	log.Printf("INFO: app started!")
+	go func() {
+		var metricsRouter = mux.NewRouter()
+		metricsRouter.Handle("/metrics", promhttp.Handler())
+		log.Fatal(http.ListenAndServe(":8001", metricsRouter))
+	}()
 
 	log.Fatal(http.ListenAndServe(":8000", addAccessControlAllowOriginHeader(appCtx.Config, crs.Handler(router))))
 

@@ -134,3 +134,7 @@ go get -v ./...
 go build ./cmd/louis
 ./louis
 ```
+
+## Monitoring with Prometheus
+
+Metrics are exposed in port 8001 and route `/metrics`
