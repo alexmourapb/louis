@@ -1,4 +1,4 @@
-FROM kexpress/louis-core-img:0.2 as builder
+FROM kexpress/louis-deps:latest as builder
 MAINTAINER Alik Khilazhev <alikhil@mail.ru>
 
 RUN \
