@@ -52,5 +52,15 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 WORKDIR $GOPATH
 
-
-RUN go get ./...
+RUN \
+  go get gopkg.in/h2non/bimg.v1 && \ 
+  go get github.com/mattn/go-sqlite3 && \
+  go get github.com/aws/aws-sdk-go && \
+  go get github.com/joho/godotenv && \
+  go get github.com/onsi/gomega && \
+  go get github.com/stretchr/testify && \
+  go get github.com/RichardKnop/machinery/v1 && \
+  go get github.com/lib/pq && \
+  go get github.com/go-redis/redis && \
+  go get github.com/gorilla/mux  && \
+  go get github.com/rs/xid
