@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	// _ "net/http/pprof"
 	"os"
 	"os/signal"
 	"time"
@@ -62,11 +63,13 @@ func main() {
 	appCtx := &louis.AppContext{}
 	initApp(appCtx)
 
+	throttler := louis.NewThrottler(appCtx.Config)
+
 	// Register http handlers and start listening
 	router := mux.NewRouter()
 	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
-	router.Handle("/upload", louis.UploadHandler(appCtx)).Methods("POST")
-	router.Handle("/uploadWithClaim", louis.UploadWithClaimHandler(appCtx)).Methods("POST")
+	router.Handle("/upload", throttler.Throttle(louis.UploadHandler(appCtx))).Methods("POST")
+	router.Handle("/uploadWithClaim", throttler.Throttle(louis.UploadWithClaimHandler(appCtx))).Methods("POST")
 	router.HandleFunc("/claim", louis.ClaimHandler(appCtx)).Methods("POST")
 	router.HandleFunc("/healthz", louis.GetHealth(appCtx)).Methods("GET")
 	// registering SIGTERM handling
@@ -104,6 +107,10 @@ func main() {
 		log.Fatal(http.ListenAndServe(":8001", metricsRouter))
 	}()
 
+	// go func() {
+	// 	// for pprof
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
 	log.Fatal(http.ListenAndServe(":8000", addAccessControlAllowOriginHeader(appCtx.Config, crs.Handler(router))))
 
 }

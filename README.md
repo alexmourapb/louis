@@ -119,6 +119,9 @@ POSTGRES_SSL_MODE=disable <disable/enable>
 MAX_IMAGE_SIZE=5242880 <in bytes>
 CORS_ALLOW_ORIGIN=*
 CORS_ALLOW_HEADERS=Authorization,Content-Type,Access-Content-Allow-Origin
+THROTTLER_QUEUE_LENGTH=10 <max parallel uploads>
+THROTTLER_TIMEOUT=15s <queued request will be rejected after this delay with 503 status code>
+
 ```
 
 
@@ -133,6 +136,15 @@ go get -v ./...
 
 go build ./cmd/louis
 ./louis
+```
+
+### Databases
+
+For development purposes(e.g. for running test) is better to use docker containers with databases:
+
+```bash
+docker run -d --rm -v $(PWD)/data/pg:/var/lib/postgresql/data -e POSTGRES_PASSWORD=1234 -e POSTGRES_USER=postgres -p 5433:5432 --name pg-app postgres
+docker run -d --rm -v $(PWD)/data/rd:/data -p 6379:6379 --name rds redis
 ```
 
 ## Monitoring with Prometheus

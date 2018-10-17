@@ -50,10 +50,11 @@ ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-WORKDIR $GOPATH
+WORKDIR $GOPATH/src/github.com/KazanExpress/louis
 
 COPY . $GOPATH/src/github.com/KazanExpress/louis
-RUN go get ./...
+# RUN cd $GOPATH/src/github.com/KazanExpress/louis && \
+RUN go get -v ./...
 # RUN \
 #   go get gopkg.in/h2non/bimg.v1 && \ 
 #   go get github.com/mattn/go-sqlite3 && \
@@ -67,7 +68,7 @@ RUN go get ./...
 #   go get github.com/gorilla/mux  && \
 #   go get github.com/rs/xid
 
-RUN go build -o bin/louis github.com/KazanExpress/louis/cmd/louis
+RUN go build -o /go/bin/louis /go/src/github.com/KazanExpress/louis/cmd/louis
 
 
 FROM ubuntu:16.04
@@ -100,3 +101,4 @@ COPY ./cmd/louis/ensure-transforms.json /configs/ensure-transforms.json
 CMD ["bin/louis", "--env=/configs/.env" ,"--transforms-path=/configs/ensure-transforms.json"]
 # Expose the server TCP port
 EXPOSE 8000
+EXPOSE 8001
