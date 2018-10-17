@@ -5,6 +5,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/namsral/flag"
 	"log"
+	"time"
 )
 
 // Config - application configs
@@ -13,7 +14,7 @@ type Config struct {
 	TransformsPath         string `ignored:"true"`
 	InitDB                 bool   `ignored:"true"`
 	CleanupPoolConcurrency uint   `envconfig:"CLEANUP_POOL_CONCURRENCY" default:"10"`
-	// In minutes
+	// In minutes; TODO: -> 1m
 	CleanUpDelay int `envconfig:"CLEANUP_DELAY" default:"1"`
 
 	PostgresUser     string `envconfig:"POSTGRES_USER" default:"postgres"`
@@ -26,6 +27,10 @@ type Config struct {
 	CORSAllowHeaders string `envconfig:"CORS_ALLOW_HEADERS" default:"Authorization,Content-Type,Access-Content-Allow-Origin"`
 	// MaxImageSize maximum image size in bytes, default is 5MB
 	MaxImageSize int64 `envconfig:"MAX_IMAGE_SIZE" default:"5242880"`
+
+	ThrottlerQueueLength int64  `envconfig:"THROTTLER_QUEUE_LENGTH" default:"10"`
+	ThrottlerTimeoutStr  string `envconfig:"THROTTLER_TIMEOUT" default:"15s"`
+	ThrottlerTimeout     time.Duration
 }
 
 // App - application configs
@@ -55,6 +60,13 @@ func InitFrom(envPath string) *Config {
 	}
 
 	err = envconfig.Process("louis", App)
+
+	if err != nil {
+		panic(err)
+	}
+
+	App.ThrottlerTimeout, err = time.ParseDuration(App.ThrottlerTimeoutStr)
+
 	if err != nil {
 		panic(err)
 	}
