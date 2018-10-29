@@ -7,16 +7,32 @@ import (
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"runtime/debug"
 	// _ "net/http/pprof"
+	"gopkg.in/h2non/bimg.v1"
 	"os"
 	"os/signal"
 	"time"
 )
+
+var (
+	bimgMemory = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "bimg_memory_bytes",
+		Help: "Amount of memory currently used by bimg",
+	}, func() float64 {
+		return float64(bimg.VipsMemory().Memory)
+	})
+)
+
+func init() {
+	prometheus.MustRegister(bimgMemory)
+}
 
 func addAccessControlAllowOriginHeader(cfg *config.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -104,6 +120,10 @@ func main() {
 	go func() {
 		var metricsRouter = mux.NewRouter()
 		metricsRouter.Handle("/metrics", promhttp.Handler())
+		metricsRouter.HandleFunc("/free", func(w http.ResponseWriter, req *http.Request) {
+			debug.FreeOSMemory()
+			w.WriteHeader(200)
+		}).Methods("POST")
 		log.Fatal(http.ListenAndServe(":8001", metricsRouter))
 	}()
 
