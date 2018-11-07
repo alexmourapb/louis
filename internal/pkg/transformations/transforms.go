@@ -10,7 +10,7 @@ import (
 func Fit(buffer []byte, side, quality int) ([]byte, error) {
 	var img = bimg.NewImage(buffer)
 
-	if img.Type() != "jpg" {
+	if img.Type() != "jpeg" {
 		jpg, err := img.Convert(bimg.JPEG)
 		if err != nil {
 			return nil, err
@@ -27,12 +27,14 @@ func Fit(buffer []byte, side, quality int) ([]byte, error) {
 			Height:        side,
 			Quality:       quality,
 			StripMetadata: true,
+			NoAutoRotate:  false,
 		})
 	} else {
 		return img.Process(bimg.Options{
 			Width:         side,
 			Quality:       quality,
 			StripMetadata: true,
+			NoAutoRotate:  false,
 		})
 	}
 }
@@ -41,9 +43,11 @@ func Fit(buffer []byte, side, quality int) ([]byte, error) {
 func Fill(buffer []byte, width, height, quality int) ([]byte, error) {
 	var img = bimg.NewImage(buffer)
 	return img.Process(bimg.Options{
-		Width:   width,
-		Height:  height,
-		Enlarge: true,
-		Embed:   true,
+		Width:         width,
+		Height:        height,
+		Enlarge:       true,
+		Embed:         true,
+		NoAutoRotate:  false,
+		StripMetadata: true,
 	})
 }

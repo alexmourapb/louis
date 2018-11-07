@@ -104,7 +104,11 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 	wg.Add(1 + len(trans))
 	go func(ctx context.Context) {
 		defer wg.Done()
-		buf, err := bimg.NewImage(*buffer).Process(bimg.Options{Quality: OriginalTransformQuality})
+		buf, err := bimg.NewImage(*buffer).Process(bimg.Options{
+			Quality:       OriginalTransformQuality,
+			NoAutoRotate:  false,
+			StripMetadata: true,
+		})
 		if err != nil {
 			ers <- err
 			return
