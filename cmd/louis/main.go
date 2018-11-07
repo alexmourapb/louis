@@ -9,6 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/procfs"
 	"github.com/rs/cors"
 	"io/ioutil"
 	"log"
@@ -74,12 +75,38 @@ func initApp(appCtx *louis.AppContext) {
 	appCtx.WithWork()
 }
 
+func runMemoryWatcher(appCtx *louis.AppContext) {
+	if appCtx.Config.MemoryWatcherEnabled {
+		var p, err = procfs.Self()
+		if err != nil {
+			log.Fatalf("ERROR: could not get process: %s", err)
+		}
+
+		stat, err := p.NewStat()
+		if err != nil {
+			log.Fatalf("ERROR: could not get process stat: %s", err)
+		}
+
+		var ticker = time.NewTicker(appCtx.Config.MemoryWatcherCheckInterval)
+		go func() {
+			for range ticker.C {
+				var usedRezidentMemory = int64(stat.ResidentMemory())
+				if usedRezidentMemory > appCtx.Config.MemoryWatcherLimitBytes {
+					debug.FreeOSMemory()
+				}
+			}
+		}()
+	}
+}
+
 func main() {
 
 	appCtx := &louis.AppContext{}
 	initApp(appCtx)
 
 	throttler := louis.NewThrottler(appCtx.Config)
+
+	runMemoryWatcher(appCtx)
 
 	// Register http handlers and start listening
 	router := mux.NewRouter()

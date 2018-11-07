@@ -31,6 +31,10 @@ type Config struct {
 	ThrottlerQueueLength int64  `envconfig:"THROTTLER_QUEUE_LENGTH" default:"10"`
 	ThrottlerTimeoutStr  string `envconfig:"THROTTLER_TIMEOUT" default:"15s"`
 	ThrottlerTimeout     time.Duration
+
+	MemoryWatcherEnabled       bool          `envconfig:"MEMORY_WATCHER_ENABLED" default:"false"`
+	MemoryWatcherLimitBytes    int64         `envconfig:"MEMORY_WATCHER_LIMIT_BYTES" default:"1610612736"` // 1.5 GB
+	MemoryWatcherCheckInterval time.Duration `envconfig:"MEMORY_WATCHER_CHECK_INTERVAL" default:"10m"`     // 1.5 GB
 }
 
 // App - application configs

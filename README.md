@@ -121,9 +121,11 @@ CORS_ALLOW_ORIGIN=*
 CORS_ALLOW_HEADERS=Authorization,Content-Type,Access-Content-Allow-Origin
 THROTTLER_QUEUE_LENGTH=10 <max parallel uploads>
 THROTTLER_TIMEOUT=15s <queued request will be rejected after this delay with 503 status code>
+MEMORY_WATCHER_ENABLED=false <if true then once in interval debug.FreeOsMemory() will be called if current RSS is more than limit>
+MEMORY_WATCHER_LIMIT_BYTES=1610612736 <maximum memory amount ignored by watcher, default is 1.5GB>
+MEMORY_WATCHER_CHECK_INTERVAL=10m
 
 ```
-
 
 ## Development
 
