@@ -43,13 +43,13 @@ List of available configuration options:
 
 Key used for uploading images. 
 
-**Required**.
+*Required*.
 
 #### LOUIS_SECRET_KEY
 
 Key used for claiming images. 
 
-**Required**.
+*Required*.
 
 #### MAX_IMAGE_SIZE
 
@@ -57,7 +57,7 @@ Maximum size of image allowed to upload in bytes.
 
 Default is `5242880`(~5MB).
 
-**Optional**.
+*Optional*.
 
 #### CORS_ALLOW_ORIGIN
 
@@ -65,7 +65,7 @@ Allowed origins.
 
 Default is `*` (allows all). 
 
-**Optional**.
+*Optional*.
 
 #### CORS_ALLOW_HEADERS
 
@@ -73,7 +73,7 @@ Allowed headers.
 
 Default is `Authorization,Content-Type,Access-Content-Allow-Origin`.
 
-**Optional**.
+*Optional*.
 
 #### THROTTLER_QUEUE_LENGTH
 
@@ -81,7 +81,7 @@ Maximum number of parallel uploads. Other requests will be queued and rejected a
 
 Default is `10`.
 
-**Optional**.
+*Optional*.
 
 #### THROTTLER_TIMEOUT
 
@@ -89,7 +89,7 @@ Queued request will be rejected after this delay with 503 status code.
 
 Default is `15s`.
 
-**Optional**.
+*Optional*.
 
 #### MEMORY_WATCHER_ENABLED
 
@@ -97,7 +97,7 @@ if `true` then once in interval `debug.FreeOsMemory()` will be called if current
 
 Default is `false`.
 
-**Optional**.
+*Optional*.
 
 #### MEMORY_WATCHER_LIMIT_BYTES
 
@@ -111,7 +111,7 @@ Default is `1610612736` (1.5GB).
 
 Default is `10m`. 
 
-**Optional**.
+*Optional*.
 
 
 #### CLEANUP_DELAY
@@ -120,7 +120,7 @@ Delay in minutes after which not claimed images will be deleted.
 
 Default is `1`.
 
-**Optional**.
+*Optional*.
 
 #### CLEANUP_POOL_CONCURRENCY
 
@@ -128,67 +128,67 @@ Number of concurrent cleanup gorutines.
 
 Default is `10`.
 
-**Optional**.
+*Optional*.
 
 #### S3_BUCKET
 
 Name of S3 bucket.
 
-**Required**.
+*Required*.
 
 #### S3_ENDPOINT
 
 By default AWS endpoint is used. Should be set if another S3 compatible storage is used.
 
- **Optional**.
+ *Optional*.
 
 #### AWS_REGION
 
 Region where S3 is stored.
 
-**Required**.
+*Required*.
 
 #### AWS_ACCESS_KEY_ID
 
 Your S3 access key ID.
 
-**Required**.
+*Required*.
 
 #### AWS_SECRET_ACCESS_KEY
 
 Your S3 secret key.
 
-**Required**.
+*Required*.
 
 #### REDIS_URL
 
 Default is `:6379`.  
 
-**Optional**.
+*Optional*.
 
 #### POSTGRES_ADDRESS
 
 PostgreSQL database address. Default is `127.0.0.1:5432`. 
 
-**Optional**.
+*Optional*.
 
 #### POSTGRES_DATABASE
 
 Database name. Default is `postgres`.
 
-**Optional**.
+*Optional*.
 
 #### POSTGRES_USER
 
 Default is `postgres`.
 
-**Optional**.
+*Optional*.
 
 #### POSTGRES_PASSWORD
 
 Default is `1234`.
 
-**Optional**.
+*Optional*.
 
 #### POSTGRES_SSL_MODE
 
@@ -196,7 +196,7 @@ To `enable` or `disable` [SSL mode](https://www.postgresql.org/docs/9.1/libpq-ss
 
 Default is `disable`.
 
-**Optional**
+*Optional*
 
 ## Development
 
