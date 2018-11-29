@@ -29,14 +29,14 @@ func Fit(buffer []byte, side, quality int) ([]byte, error) {
 			StripMetadata: true,
 			NoAutoRotate:  false,
 		})
-	} else {
-		return img.Process(bimg.Options{
-			Width:         side,
-			Quality:       quality,
-			StripMetadata: true,
-			NoAutoRotate:  false,
-		})
 	}
+
+	return img.Process(bimg.Options{
+		Width:         side,
+		Quality:       quality,
+		StripMetadata: true,
+		NoAutoRotate:  false,
+	})
 }
 
 // Fill - fills image to given width & height

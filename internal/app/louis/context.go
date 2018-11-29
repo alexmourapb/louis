@@ -10,6 +10,11 @@ import (
 	redis2 "github.com/go-redis/redis"
 )
 
+const (
+	RedisMaxActive = 5
+	RedisMaxIdle   = 5
+)
+
 type AppContext struct {
 	DB       *storage.DB
 	Pool     *work.WorkerPool
@@ -41,12 +46,8 @@ func (appCtx *AppContext) DropAll() error {
 	appCtx.Dropped = true
 
 	if appCtx.Pool != nil {
-		log.Printf("POOL: draining >")
 		appCtx.Pool.Drain()
-		log.Printf("POOL: drained =>")
-		log.Printf("POOL: stoping >")
 		appCtx.Pool.Stop()
-		log.Printf("POOL: stoped=>")
 	}
 
 	appCtx.DropRedis()
@@ -67,8 +68,8 @@ func (appCtx *AppContext) DropRedis() {
 
 func (appCtx *AppContext) WithWork() *AppContext {
 	var redisPool = &redis.Pool{
-		MaxActive: 5,
-		MaxIdle:   5,
+		MaxActive: RedisMaxActive,
+		MaxIdle:   RedisMaxIdle,
 		Wait:      true,
 		Dial: func() (redis.Conn, error) {
 			return redis.Dial("tcp", appCtx.Config.RedisURL)

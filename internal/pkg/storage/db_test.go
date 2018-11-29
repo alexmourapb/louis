@@ -133,7 +133,7 @@ func (s *Suite) TestSetImageURL() {
 	assert.NoError(db.SetImageURL(imageKey, userID, imageURL), "failed to set image url")
 
 	img, err := db.QueryImageByKey(imageKey)
-
+	s.NoError(err)
 	assert.Equal(imageURL, img.URL)
 
 }
@@ -169,7 +169,7 @@ func getAddImageTest(key string, userID int32, tags ...string) func(*Suite) {
 		db := s.db
 		assert := assert.New(s.T())
 		imageID, err := db.AddImage(key, userID, tags...)
-
+		s.NoError(err)
 		assert.Equal(int64(1), imageID, "imageID should be 1")
 
 		img, err := db.QueryImageByKey(key)
@@ -219,7 +219,7 @@ func (s *Suite) TestEnsureTransformations(t *testing.T) {
 	assert.Equal(fmt.Errorf("sql: no rows in result set"), db.EnsureTransformations(tlist))
 
 	err = db.Model(&Transformation{}).Count(&count).Error
-
+	s.NoError(err)
 	assert.Equal(len(tlist), count)
 
 }
