@@ -101,6 +101,7 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 	}
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
+	defer cancelCtx()
 	wg.Add(1 + len(trans))
 	go func(ctx context.Context) {
 		defer wg.Done()
@@ -164,7 +165,7 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 	select {
 	case er := <-ers:
 		cancelCtx()
-		log.Printf("ERROR: on parallel transnforms - %v", er)
+		log.Printf("ERROR: on parallel transforms - %v", er)
 		return nil, er
 
 	case <-func() chan bool {

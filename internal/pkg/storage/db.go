@@ -3,10 +3,9 @@ package storage
 import (
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/config"
-	"strings"
-	// "github.com/go-pg/pg"
-	// "github.com/go-pg/pg/orm"
 	"github.com/jinzhu/gorm"
+	"strings"
+	// gorm dialects need to be included in that way
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"log"
 	"sync"
@@ -76,12 +75,10 @@ func (db *DB) DropDB() error {
 		err := db.DropTableIfExists(&Image{}).Error
 		if err != nil {
 			log.Printf("ERROR: on droping db - %v", err)
-			err = nil
 		}
 		err = db.DropTableIfExists(&Transformation{}).Error
 		if err != nil {
 			log.Printf("ERROR: on droping db - %v", err)
-			err = nil
 		}
 		err = db.DropTableIfExists(&User{}).Error
 		if err != nil {

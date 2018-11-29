@@ -120,7 +120,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for sig := range c {
-			log.Printf("WARNING: Signal recieved: %s. Stoping...", sig.String())
+			log.Printf("WARNING: Signal received: %s. Stoping...", sig.String())
 			select {
 			case <-time.After(time.Second * 10):
 				appCtx.Pool.Stop()

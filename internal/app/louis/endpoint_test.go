@@ -160,7 +160,7 @@ func (s *Suite) TestUpload() {
 	imageKey := payload["key"].(string)
 
 	if !strings.HasPrefix(url, "http") || !strings.HasSuffix(url, ".jpg") {
-		s.Failf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
+		s.Failf("url should start with http(s?):// and end with .jpg but received - %v", url)
 	}
 
 	img, err := appCtx.DB.QueryImageByKey(imageKey)
@@ -211,7 +211,7 @@ func (s *Suite) TestUploadWithClaim() {
 	imageKey := payload["key"].(string)
 
 	if !strings.HasPrefix(url, "http") || !strings.HasSuffix(url, ".jpg") {
-		s.Failf("url should start with http(s?):// and end with .jpg but recieved - %v", url)
+		s.Failf("url should start with http(s?):// and end with .jpg but received - %v", url)
 	}
 
 	img, err := appCtx.DB.QueryImageByKey(imageKey)
@@ -403,6 +403,10 @@ func newFileUploadRequest(uri string, params map[string]string, paramName, path 
 		return nil, err
 	}
 	_, err = io.Copy(part, file)
+
+	if err != nil {
+		return nil, err
+	}
 
 	for key, val := range params {
 		_ = writer.WriteField(key, val)
