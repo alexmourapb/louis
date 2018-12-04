@@ -186,7 +186,7 @@ Default is `postgres`.
 
 #### POSTGRES_PASSWORD
 
-Default is `1234`.
+Default is empty string.
 
 *Optional*.
 
