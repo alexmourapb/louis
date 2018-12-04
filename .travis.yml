@@ -22,6 +22,7 @@ env:
 
 before_install:
   # install dependencies for bimg
+  - export LIBVIPS_VERSION=8.6.3
   - curl -s https://raw.githubusercontent.com/h2non/bimg/master/preinstall.sh | sudo bash -
 
 # install: 
