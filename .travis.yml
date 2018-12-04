@@ -24,8 +24,8 @@ before_install:
   # install dependencies for bimg
   - curl -s https://raw.githubusercontent.com/h2non/bimg/master/preinstall.sh | sudo bash -
 
-install: 
-  - dep ensure
+# install: 
+  # - dep ensure
 
 script: 
   - go test
