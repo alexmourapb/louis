@@ -4,7 +4,7 @@
 [![License MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://img.shields.io/badge/License-MIT-brightgreen.svg)
 [![Docker Build Status](https://img.shields.io/docker/build/kexpress/louis.svg)](https://hub.docker.com/r/kexpress/louis/)
 
-Service for transforming and uploading images to any S3 compatible storage. 
+Service for transforming and uploading images to any S3 compatible storage.
 
 Inspired from [ospry](http://ospry.io) and [cloudinary](http://cloudinary.com).
 
@@ -18,6 +18,35 @@ The upload flow lets developers make cross-browser uploads directly to configure
 
 See [API description](/api/docs.md) for more details on how to integrate.
 
+## Transformations
+
+There are some implemented transformations which can be applied during the image upload.
+
+To use transforms, there should be `ensure-transform.json` (take a look at [example file](https://github.com/KazanExpress/louis/blob/master/cmd/louis/ensure-transforms.json)) file passed to `Louis`. For now `Louis`, inserts all new transformations from file to postgres during application start. This way of configuring will be definitely changed in the future.
+
+Each element in `transformations` of `ensure-transforms.json` describes transformation rule:
+
+- `type` - type of transform. For now it's either `fill` or `fit`
+
+- `name` field represents unique name of transformation, it will be used in uploaded image url for that transform
+
+- transformation will be applied to all new images which have same `tag`
+
+- `width` and `height` parameters for transformation (note that it's not necessarily final size of transformed image)
+
+- `quality` - compression parameter for transformations.
+
+For now list is very short, but it will be extended in future:
+
+### Fit
+
+The image is resized so that it takes up as much space as possible within a bounding box defined by the given width and height parameters.
+The original aspect ratio is retained and all of the original image is visible.
+
+### Fill
+
+Fills image to given width & height.
+
 ## Running with docker
 
 ```bash
@@ -29,8 +58,7 @@ docker run kexpress/louis
 
 ```bash
 ./louis --env=<default: .env | path to file with environment variables> \
-        --transforms-path=<default: ensure-transforms.json | path to file containing json description of transforms> \
-        --initdb=<default: true | ensure needed tables in database>
+        --transforms-path=<default: ensure-transforms.json | path to file containing json description of transforms>
 ```
 
 ### Configuration
@@ -39,164 +67,31 @@ docker run kexpress/louis
 
 List of available configuration options:
 
-#### LOUIS_PUBLIC_KEY
-
-Key used for uploading images. 
-
-*Required*.
-
-#### LOUIS_SECRET_KEY
-
-Key used for claiming images. 
-
-*Required*.
-
-#### MAX_IMAGE_SIZE
-
-Maximum size of image allowed to upload in bytes. 
-
-Default is `5242880`(~5MB).
-
-*Optional*.
-
-#### CORS_ALLOW_ORIGIN
-
-Allowed origins. 
-
-Default is `*` (allows all). 
-
-*Optional*.
-
-#### CORS_ALLOW_HEADERS
-
-Allowed headers.
-
-Default is `Authorization,Content-Type,Access-Content-Allow-Origin`.
-
-*Optional*.
-
-#### THROTTLER_QUEUE_LENGTH
-
-Maximum number of parallel uploads. Other requests will be queued and rejected after timeout.
-
-Default is `10`.
-
-*Optional*.
-
-#### THROTTLER_TIMEOUT
-
-Queued request will be rejected after this delay with 503 status code.
-
-Default is `15s`.
-
-*Optional*.
-
-#### MEMORY_WATCHER_ENABLED
-
-if `true` then once in interval `debug.FreeOsMemory()` will be called if current RSS is more than limit.
-
-Default is `false`.
-
-*Optional*.
-
-#### MEMORY_WATCHER_LIMIT_BYTES
-
-Maximum memory amount ignored by watcher in bytes. 
-
-Default is `1610612736` (1.5GB).
-
-**Optinoal**.
-
-#### MEMORY_WATCHER_CHECK_INTERVAL
-
-Default is `10m`. 
-
-*Optional*.
-
-
-#### CLEANUP_DELAY
-
-Delay in minutes after which not claimed images will be deleted. 
-
-Default is `1`.
-
-*Optional*.
-
-#### CLEANUP_POOL_CONCURRENCY
-
-Number of concurrent cleanup gorutines. 
-
-Default is `10`.
-
-*Optional*.
-
-#### S3_BUCKET
-
-Name of S3 bucket.
-
-*Required*.
-
-#### S3_ENDPOINT
-
-By default AWS endpoint is used. Should be set if another S3 compatible storage is used.
-
- *Optional*.
-
-#### AWS_REGION
-
-Region where S3 is stored.
-
-*Required*.
-
-#### AWS_ACCESS_KEY_ID
-
-Your S3 access key ID.
-
-*Required*.
-
-#### AWS_SECRET_ACCESS_KEY
-
-Your S3 secret key.
-
-*Required*.
-
-#### REDIS_URL
-
-Default is `:6379`.  
-
-*Optional*.
-
-#### POSTGRES_ADDRESS
-
-PostgreSQL database address. Default is `127.0.0.1:5432`. 
-
-*Optional*.
-
-#### POSTGRES_DATABASE
-
-Database name. Default is `postgres`.
-
-*Optional*.
-
-#### POSTGRES_USER
-
-Default is `postgres`.
-
-*Optional*.
-
-#### POSTGRES_PASSWORD
-
-Default is `1234`.
-
-*Optional*.
-
-#### POSTGRES_SSL_MODE
-
-To `enable` or `disable` [SSL mode](https://www.postgresql.org/docs/9.1/libpq-ssl.html).
-
-Default is `disable`.
-
-*Optional*
+| Parameter                   | Description                       | Default             | Required |
+|-----------------------------|-----------------------------------|---------------------|----------|
+| `LOUIS_PUBLIC_KEY`  | Key used for uploading images      |      | Yes |
+| `LOUIS_SECRET_KEY` | Key used for claiming images |   | Yes |
+| `MAX_IMAGE_SIZE` | Maximum size of image allowed to upload in bytes | `5242880`(~5MB) | No |
+| `CORS_ALLOW_ORIGIN` | Allowed origins | `*` (allows all) | No |
+| `CORS_ALLOW_HEADERS` | Allowed headers | `Authorization,Content-Type,Access-Content-Allow-Origin` | No |
+| `THROTTLER_QUEUE_LENGTH` | Maximum number of parallel uploads Other requests will be queued and rejected after timeout | `10` | No |
+| `THROTTLER_TIMEOUT` | Queued request will be rejected after this delay with 503 status code | `15s` | No |
+| `MEMORY_WATCHER_ENABLED` | if `true` then once in interval `debug.FreeOsMemory()` will be called if current RSS is more than limit | `false` | No |
+| `MEMORY_WATCHER_LIMIT_BYTES` | Maximum memory amount ignored by watcher in bytes |  `1610612736` (1.5GB) | No |
+| `MEMORY_WATCHER_CHECK_INTERVAL` |  | `10m` | No |
+| `CLEANUP_DELAY` | Delay in minutes after which not claimed images will be deleted | `1` | No |
+| `CLEANUP_POOL_CONCURRENCY` | Number of concurrent cleanup gorutines | `10` | No |
+| `S3_BUCKET` | Name of S3 bucket |  | Yes |
+| `S3_ENDPOINT` | By default AWS endpoint is used Should be set if another S3 compatible storage is used | AWS S3 | No |
+| `AWS_REGION` | Region where S3 is stored |  | Yes |
+| `AWS_ACCESS_KEY_ID` | Your S3 access key ID |  | Yes |
+| `AWS_SECRET_ACCESS_KEY` | Your S3 secret key |  | Yes |
+| `REDIS_URL` |  | `:6379` | No |
+| `POSTGRES_ADDRESS` | PostgreSQL database address | `127.0.0.1:5432` | No |
+| `POSTGRES_DATABASE` | Database name | `postgres` | No |
+| `POSTGRES_USER` | | `postgres` | No |
+| `POSTGRES_PASSWORD` | | `""` | No |
+| `POSTGRES_SSL_MODE` | To `enable` or `disable` [SSL mode](https://www.postgresql.org/docs/9.1/libpq-ssl.html) | `disable` | No |
 
 ## Development
 
@@ -211,13 +106,13 @@ go build ./cmd/louis
 ./louis
 ```
 
-### Databases
+### Testing
 
-For development purposes(e.g. for running test) is better to use docker containers with databases:
+As you remember louis uses some databases for storing data. And they are needed during tests. You can easily run them from `docker-compose`:
 
 ```bash
-docker run -d --rm -v $(PWD)/data/pg:/var/lib/postgresql/data -e POSTGRES_PASSWORD=1234 -e POSTGRES_USER=postgres -p 5433:5432 --name pg-app postgres
-docker run -d --rm -v $(PWD)/data/rd:/data -p 6379:6379 --name rds redis
+cd build
+docker-compose up -d
 ```
 
 ## Monitoring with Prometheus

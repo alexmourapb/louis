@@ -7,7 +7,8 @@ go:
 
 services:
   - redis
-  - postgres
+  - postgresql
+  - docker
 
 addons:
   postgresql: "9.6"
@@ -17,19 +18,20 @@ addons:
     - postgresql-client-9.6
 
 env:
-  - REDIS_URL=127.0.0.1:6379 POSTGRES_DATABASE=travis_ci_test CLEANUP_DELAY=1 
+  - REDIS_URL=127.0.0.1:6379 POSTGRES_DATABASE=travis_ci_test CLEANUP_DELAY=1 POSTGRES_ADDRESS=127.0.0.1:5432 LOUIS_PUBLIC_KEY=pkey LOUIS_SECRET_KEY=skey POSTGRES_SSL_MODE=disable
 
 before_install:
-  - go get golang.org/x/tools/cmd/cover
-  - go get github.com/mattn/goveralls
   # install dependencies for bimg
+  - export LIBVIPS_VERSION=8.6.3
   - curl -s https://raw.githubusercontent.com/h2non/bimg/master/preinstall.sh | sudo bash -
+
+# install: 
+  # - dep ensure
+
+script: 
+  - go test
 
 before_script:
   - sudo chmod 777 test/data
   # - sudo chown www-data test/data
   - psql -c 'create database travis_ci_test;' -U postgres
-
-after_script:
-  - go test -v -covermode=count -coverprofile=coverage.out
-  - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
