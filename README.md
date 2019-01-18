@@ -18,6 +18,35 @@ The upload flow lets developers make cross-browser uploads directly to configure
 
 See [API description](/api/docs.md) for more details on how to integrate.
 
+## Transformations
+
+There are some implemented transformations which can be applied during the image upload.
+
+To use transforms, there should be `ensure-transform.json` (take a look at [example file](https://github.com/KazanExpress/louis/blob/master/cmd/louis/ensure-transforms.json)) file passed to `Louis`. For now `Louis`, inserts all new transformations from file to postgres during application start. This way of configuring will be definitely changed in the future.
+
+Each element in `transformations` of `ensure-transforms.json` describes transformation rule:
+
+- `type` - type of transform. For now it's either `fill` or `fit`
+
+- `name` field represents unique name of transformation, it will be used in uploaded image url for that transform
+
+- transformation will be applied to all new images which have same `tag`
+
+- `width` and `height` parameters for transformation (note that it's not necessarily final size of transformed image)
+
+- `quality` - compression parameter for transformations.
+
+For now list is very short, but it will be extended in future:
+
+### Fit
+
+The image is resized so that it takes up as much space as possible within a bounding box defined by the given width and height parameters.
+The original aspect ratio is retained and all of the original image is visible.
+
+### Fill
+
+Fills image to given width & height.
+
 ## Running with docker
 
 ```bash
