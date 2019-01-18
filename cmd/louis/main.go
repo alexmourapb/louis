@@ -51,10 +51,8 @@ func initApp(appCtx *louis.AppContext) {
 		log.Fatal(err)
 	}
 
-	if appCtx.Config.InitDB {
-		if err = appCtx.DB.InitDB(); err != nil {
-			log.Fatalf("FATAL: failed to init db - %v", err)
-		}
+	if err = appCtx.DB.InitDB(); err != nil {
+		log.Fatalf("FATAL: failed to init db - %v", err)
 	}
 
 	jsonBytes, err := ioutil.ReadFile(appCtx.Config.TransformsPath)

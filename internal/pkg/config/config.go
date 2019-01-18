@@ -12,7 +12,6 @@ import (
 type Config struct {
 	RedisURL               string `envconfig:"REDIS_URL" default:":6379"`
 	TransformsPath         string `ignored:"true"`
-	InitDB                 bool   `ignored:"true"`
 	CleanupPoolConcurrency uint   `envconfig:"CLEANUP_POOL_CONCURRENCY" default:"10"`
 	// In minutes; TODO: -> 1m
 	CleanUpDelay int `envconfig:"CLEANUP_DELAY" default:"1"`
@@ -43,12 +42,10 @@ func Init() *Config {
 
 	envPath := flag.String("env", ".env", "path to file with environment variables")
 	transformsPath := flag.String("transforms-path", "ensure-transforms.json", "path to file containing JSON transforms to ensure")
-	initDB := flag.Bool("initdb", true, "if true then non-existing database tables will be created")
 
 	flag.Parse()
 
 	conf := InitFrom(*envPath)
-	conf.InitDB = *initDB
 	conf.TransformsPath = *transformsPath
 	return conf
 }
