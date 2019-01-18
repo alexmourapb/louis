@@ -39,164 +39,31 @@ docker run kexpress/louis
 
 List of available configuration options:
 
-#### LOUIS_PUBLIC_KEY
-
-Key used for uploading images. 
-
-*Required*.
-
-#### LOUIS_SECRET_KEY
-
-Key used for claiming images. 
-
-*Required*.
-
-#### MAX_IMAGE_SIZE
-
-Maximum size of image allowed to upload in bytes. 
-
-Default is `5242880`(~5MB).
-
-*Optional*.
-
-#### CORS_ALLOW_ORIGIN
-
-Allowed origins. 
-
-Default is `*` (allows all). 
-
-*Optional*.
-
-#### CORS_ALLOW_HEADERS
-
-Allowed headers.
-
-Default is `Authorization,Content-Type,Access-Content-Allow-Origin`.
-
-*Optional*.
-
-#### THROTTLER_QUEUE_LENGTH
-
-Maximum number of parallel uploads. Other requests will be queued and rejected after timeout.
-
-Default is `10`.
-
-*Optional*.
-
-#### THROTTLER_TIMEOUT
-
-Queued request will be rejected after this delay with 503 status code.
-
-Default is `15s`.
-
-*Optional*.
-
-#### MEMORY_WATCHER_ENABLED
-
-if `true` then once in interval `debug.FreeOsMemory()` will be called if current RSS is more than limit.
-
-Default is `false`.
-
-*Optional*.
-
-#### MEMORY_WATCHER_LIMIT_BYTES
-
-Maximum memory amount ignored by watcher in bytes. 
-
-Default is `1610612736` (1.5GB).
-
-**Optinoal**.
-
-#### MEMORY_WATCHER_CHECK_INTERVAL
-
-Default is `10m`. 
-
-*Optional*.
-
-
-#### CLEANUP_DELAY
-
-Delay in minutes after which not claimed images will be deleted. 
-
-Default is `1`.
-
-*Optional*.
-
-#### CLEANUP_POOL_CONCURRENCY
-
-Number of concurrent cleanup gorutines. 
-
-Default is `10`.
-
-*Optional*.
-
-#### S3_BUCKET
-
-Name of S3 bucket.
-
-*Required*.
-
-#### S3_ENDPOINT
-
-By default AWS endpoint is used. Should be set if another S3 compatible storage is used.
-
- *Optional*.
-
-#### AWS_REGION
-
-Region where S3 is stored.
-
-*Required*.
-
-#### AWS_ACCESS_KEY_ID
-
-Your S3 access key ID.
-
-*Required*.
-
-#### AWS_SECRET_ACCESS_KEY
-
-Your S3 secret key.
-
-*Required*.
-
-#### REDIS_URL
-
-Default is `:6379`.  
-
-*Optional*.
-
-#### POSTGRES_ADDRESS
-
-PostgreSQL database address. Default is `127.0.0.1:5432`. 
-
-*Optional*.
-
-#### POSTGRES_DATABASE
-
-Database name. Default is `postgres`.
-
-*Optional*.
-
-#### POSTGRES_USER
-
-Default is `postgres`.
-
-*Optional*.
-
-#### POSTGRES_PASSWORD
-
-Default is empty string.
-
-*Optional*.
-
-#### POSTGRES_SSL_MODE
-
-To `enable` or `disable` [SSL mode](https://www.postgresql.org/docs/9.1/libpq-ssl.html).
-
-Default is `disable`.
-
-*Optional*
+| Parameter                   | Description                       | Default             | Required |
+|-----------------------------|-----------------------------------|---------------------|----------|
+| `LOUIS_PUBLIC_KEY`  | Key used for uploading images      |      | Yes |
+| `LOUIS_SECRET_KEY` | Key used for claiming images |   | Yes |
+| `MAX_IMAGE_SIZE` | Maximum size of image allowed to upload in bytes | `5242880`(~5MB) | No |
+| `CORS_ALLOW_ORIGIN` | Allowed origins | `*` (allows all) | No |
+| `CORS_ALLOW_HEADERS` | Allowed headers | `Authorization,Content-Type,Access-Content-Allow-Origin` | No |
+| `THROTTLER_QUEUE_LENGTH` | Maximum number of parallel uploads Other requests will be queued and rejected after timeout | `10` | No |
+| `THROTTLER_TIMEOUT` | Queued request will be rejected after this delay with 503 status code | `15s` | No |
+| `MEMORY_WATCHER_ENABLED` | if `true` then once in interval `debug.FreeOsMemory()` will be called if current RSS is more than limit | `false` | No |
+| `MEMORY_WATCHER_LIMIT_BYTES` | Maximum memory amount ignored by watcher in bytes |  `1610612736` (1.5GB) | No |
+| `MEMORY_WATCHER_CHECK_INTERVAL` |  | `10m` | No |
+| `CLEANUP_DELAY` | Delay in minutes after which not claimed images will be deleted | `1` | No |
+| `CLEANUP_POOL_CONCURRENCY` | Number of concurrent cleanup gorutines | `10` | No |
+| `S3_BUCKET` | Name of S3 bucket |  | Yes |
+| `S3_ENDPOINT` | By default AWS endpoint is used Should be set if another S3 compatible storage is used | AWS S3 | No |
+| `AWS_REGION` | Region where S3 is stored |  | Yes |
+| `AWS_ACCESS_KEY_ID` | Your S3 access key ID |  | Yes |
+| `AWS_SECRET_ACCESS_KEY` | Your S3 secret key |  | Yes |
+| `REDIS_URL` |  | `:6379` | No |
+| `POSTGRES_ADDRESS` | PostgreSQL database address | `127.0.0.1:5432` | No |
+| `POSTGRES_DATABASE` | Database name | `postgres` | No |
+| `POSTGRES_USER` | | `postgres` | No |
+| `POSTGRES_PASSWORD` | | `""` | No |
+| `POSTGRES_SSL_MODE` | To `enable` or `disable` [SSL mode](https://www.postgresql.org/docs/9.1/libpq-ssl.html) | `disable` | No |
 
 ## Development
 
