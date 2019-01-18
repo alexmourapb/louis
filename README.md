@@ -78,13 +78,13 @@ go build ./cmd/louis
 ./louis
 ```
 
-### Databases
+### Testing
 
-For development purposes(e.g. for running test) is better to use docker containers with databases:
+As you remember louis uses some databases for storing data. And they are needed during tests. You can easily run them from `docker-compose`:
 
 ```bash
-docker run -d --rm -v $(PWD)/data/pg:/var/lib/postgresql/data -e POSTGRES_PASSWORD=1234 -e POSTGRES_USER=postgres -p 5433:5432 --name pg-app postgres
-docker run -d --rm -v $(PWD)/data/rd:/data -p 6379:6379 --name rds redis
+cd build
+docker-compose up -d
 ```
 
 ## Monitoring with Prometheus

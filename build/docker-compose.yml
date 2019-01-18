@@ -1,0 +1,22 @@
+# use for testing louis
+
+version: '3'
+
+services:
+  redis:
+    image: redis:5.0
+    volumes: 
+      - $PWD/redis_data:/data
+    ports:
+      - 6379:6379
+  
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=postgres
+    ports:
+      - 5433:5432
+    volumes:
+      - $PWD/postgres_data:/var/lib/postgresql/data
