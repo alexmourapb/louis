@@ -28,6 +28,7 @@ func Fit(buffer []byte, side, quality int) ([]byte, error) {
 			Quality:       quality,
 			StripMetadata: true,
 			NoAutoRotate:  false,
+			Interlace:     true, // adds progressive jpeg support
 		})
 	}
 
@@ -36,6 +37,7 @@ func Fit(buffer []byte, side, quality int) ([]byte, error) {
 		Quality:       quality,
 		StripMetadata: true,
 		NoAutoRotate:  false,
+		Interlace:     true, // adds progressive jpeg support
 	})
 }
 
@@ -49,5 +51,6 @@ func Fill(buffer []byte, width, height, quality int) ([]byte, error) {
 		Embed:         true,
 		NoAutoRotate:  false,
 		StripMetadata: true,
+		Interlace:     true, // adds progressive jpeg support
 	})
 }

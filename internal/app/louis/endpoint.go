@@ -108,6 +108,7 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 		buf, err := bimg.NewImage(*buffer).Process(bimg.Options{
 			Quality:       OriginalTransformQuality,
 			NoAutoRotate:  false,
+			Interlace:     true, // Adds progressive jpeg support
 			StripMetadata: true,
 		})
 		if err != nil {

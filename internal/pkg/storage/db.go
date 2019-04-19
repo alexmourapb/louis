@@ -106,9 +106,10 @@ func (db *DB) GetImagesWithKeys(keys []string) (res *[]Image, err error) {
 
 func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {
 	var img = &Image{
-		UserID: userID,
-		Key:    imageKey,
-		Tags:   tags,
+		UserID:      userID,
+		Key:         imageKey,
+		Tags:        tags,
+		Progressive: true,
 	}
 	err = db.Create(img).Error
 	return img.ID, err

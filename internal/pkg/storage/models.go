@@ -20,6 +20,7 @@ type Image struct {
 	TransformsUploadDate time.Time      `gorm:"default:now()"`
 	DeletionDate         time.Time      `gorm:"default:now()"`
 	Tags                 pq.StringArray `gorm:"type:varchar(256)[]"`
+	Progressive          bool           `gorm:"default:false"`
 }
 
 // Transformation - is model of how transforamiotn stored in DB
