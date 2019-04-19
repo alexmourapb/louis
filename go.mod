@@ -1,0 +1,37 @@
+module github.com/KazanExpress/louis
+
+require (
+	github.com/aws/aws-sdk-go v1.15.89
+	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
+	github.com/davecgh/go-spew v1.1.1
+	github.com/go-redis/redis v6.14.2+incompatible
+	github.com/gocraft/work v0.5.1
+	github.com/golang/protobuf v1.2.0
+	github.com/gomodule/redigo v2.0.0+incompatible
+	github.com/gorilla/context v1.1.1
+	github.com/gorilla/mux v1.6.2
+	github.com/jinzhu/gorm v1.9.2
+	github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a
+	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
+	github.com/joho/godotenv v1.3.0
+	github.com/kelseyhightower/envconfig v1.3.0
+	github.com/lib/pq v1.0.0
+	github.com/mattn/go-sqlite3 v1.10.0
+	github.com/matttproud/golang_protobuf_extensions v1.0.1
+	github.com/namsral/flag v1.7.4-pre
+	github.com/onsi/gomega v1.4.3
+	github.com/pmezard/go-difflib v1.0.0
+	github.com/prometheus/client_golang v0.9.1
+	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
+	github.com/prometheus/common v0.0.0-20181126121408-4724e9255275
+	github.com/prometheus/procfs v0.0.0-20181129180645-aa55a523dc0a
+	github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967
+	github.com/rs/cors v1.6.0
+	github.com/rs/xid v1.2.1
+	github.com/stretchr/testify v1.2.2
+	golang.org/x/net v0.0.0-20181201002055-351d144fa1fc
+	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f
+	golang.org/x/text v0.3.0
+	gopkg.in/h2non/bimg.v1 v1.0.18
+	gopkg.in/yaml.v2 v2.2.2
+)
