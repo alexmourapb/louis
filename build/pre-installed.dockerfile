@@ -14,7 +14,7 @@ RUN \
   libgsf-1-dev fftw3-dev liborc-0.4-dev librsvg2-dev && \
   # Build libvips
   cd /tmp && \
-  curl -OL https://github.com/jcupitt/libvips/releases/download/v${LIBVIPS_VERSION}/vips-${LIBVIPS_VERSION}.tar.gz && \
+  curl -OL https://github.com/libvips/libvips/releases/download/v${LIBVIPS_VERSION}/vips-${LIBVIPS_VERSION}.tar.gz && \
   tar zvxf vips-$LIBVIPS_VERSION.tar.gz && \
   cd /tmp/vips-$LIBVIPS_VERSION && \
   ./configure --enable-debug=no --without-python $1 && \
@@ -29,7 +29,7 @@ RUN \
   rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Go version to use
-ENV GOLANG_VERSION 1.10
+ENV GOLANG_VERSION 1.12.4
 
 
 # gcc for cgo
@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 ENV GOLANG_DOWNLOAD_URL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz
-ENV GOLANG_DOWNLOAD_SHA256 b5a64335f1490277b585832d1f6c7f8c6c11206cba5cd3f771dcb87b98ad1a33
+ENV GOLANG_DOWNLOAD_SHA256 d7d1f1f88ddfe55840712dc1747f37a790cbcaa448f6c9cf51bbe10aa65442f5
 
 RUN curl -fsSL --insecure "$GOLANG_DOWNLOAD_URL" -o golang.tar.gz \
   && echo "$GOLANG_DOWNLOAD_SHA256 golang.tar.gz" | sha256sum -c - \
@@ -52,15 +52,15 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 WORKDIR $GOPATH
 
-RUN \
-  go get gopkg.in/h2non/bimg.v1 && \ 
-  go get github.com/mattn/go-sqlite3 && \
-  go get github.com/aws/aws-sdk-go && \
-  go get github.com/joho/godotenv && \
-  go get github.com/onsi/gomega && \
-  go get github.com/stretchr/testify && \
-  go get github.com/RichardKnop/machinery/v1 && \
-  go get github.com/lib/pq && \
-  go get github.com/go-redis/redis && \
-  go get github.com/gorilla/mux  && \
-  go get github.com/rs/xid
+# RUN \
+#   go get gopkg.in/h2non/bimg.v1 && \ 
+#   go get github.com/mattn/go-sqlite3 && \
+#   go get github.com/aws/aws-sdk-go && \
+#   go get github.com/joho/godotenv && \
+#   go get github.com/onsi/gomega && \
+#   go get github.com/stretchr/testify && \
+#   go get github.com/RichardKnop/machinery/v1 && \
+#   go get github.com/lib/pq && \
+#   go get github.com/go-redis/redis && \
+#   go get github.com/gorilla/mux  && \
+#   go get github.com/rs/xid
