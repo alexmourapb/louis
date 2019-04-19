@@ -2,7 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/KazanExpress/louis)](https://goreportcard.com/report/github.com/KazanExpress/louis)
 [![License MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://img.shields.io/badge/License-MIT-brightgreen.svg)
-[![Docker Build Status](https://img.shields.io/docker/build/kexpress/louis.svg)](https://hub.docker.com/r/kexpress/louis/)
+[![Build Status](https://drone.kznexpress.ru/api/badges/KazanExpress/louis/status.svg)](https://drone.kznexpress.ru/KazanExpress/louis)
 
 Service for transforming and uploading images to any S3 compatible storage.
 
