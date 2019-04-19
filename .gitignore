@@ -17,3 +17,6 @@ debug
 test.db
 
 data
+
+build/postgres_data/*
+build/redis_data/*
