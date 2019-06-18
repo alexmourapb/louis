@@ -1,7 +1,7 @@
 package louis
 
 import (
-	"github.com/KazanExpress/louis/internal/pkg/config"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/gocraft/work"
 	"github.com/gomodule/redigo/redis"
 	"log"
@@ -18,7 +18,7 @@ const (
 type AppContext struct {
 	DB       *storage.DB
 	Pool     *work.WorkerPool
-	Config   *config.Config
+	Config   *utils.Config
 	Enqueuer *work.Enqueuer
 	Dropped  bool
 }

@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"github.com/KazanExpress/louis/internal/app/louis"
-	"github.com/KazanExpress/louis/internal/pkg/config"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,7 +18,6 @@ import (
 	// _ "net/http/pprof"
 	"gopkg.in/h2non/bimg.v1"
 	"os"
-	"os/signal"
 	"time"
 )
 
@@ -35,7 +34,7 @@ func init() {
 	prometheus.MustRegister(bimgMemory)
 }
 
-func addAccessControlAllowOriginHeader(cfg *config.Config, next http.Handler) http.Handler {
+func addAccessControlAllowOriginHeader(cfg *utils.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Access-Control-Allow-Origin", cfg.CORSAllowOrigin)
 		w.Header().Add("Access-Control-Allow-Headers", cfg.CORSAllowHeaders)
@@ -43,10 +42,12 @@ func addAccessControlAllowOriginHeader(cfg *config.Config, next http.Handler) ht
 	})
 }
 
-func initApp(appCtx *louis.AppContext) {
+func getLouisAppContext() *louis.AppContext {
 	var err error
-	appCtx.Config = config.Init()
+	var appCtx = new(louis.AppContext)
+	appCtx.Config = utils.InitConfig()
 	appCtx.DB, err = storage.Open(appCtx.Config)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +71,9 @@ func initApp(appCtx *louis.AppContext) {
 		log.Printf("ERROR: failed to ensure transformations: %v", err)
 	}
 
+	// TODO: move cleanup to separate job (think about it)
 	appCtx.WithWork()
+	return appCtx
 }
 
 func runMemoryWatcher(appCtx *louis.AppContext) {
@@ -99,8 +102,7 @@ func runMemoryWatcher(appCtx *louis.AppContext) {
 
 func main() {
 
-	appCtx := &louis.AppContext{}
-	initApp(appCtx)
+	appCtx := getLouisAppContext()
 
 	throttler := louis.NewThrottler(appCtx.Config)
 
@@ -113,35 +115,28 @@ func main() {
 	router.Handle("/uploadWithClaim", throttler.Throttle(louis.UploadWithClaimHandler(appCtx))).Methods("POST")
 	router.HandleFunc("/claim", louis.ClaimHandler(appCtx)).Methods("POST")
 	router.HandleFunc("/healthz", louis.GetHealth(appCtx)).Methods("GET")
-	// registering SIGTERM handling
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for sig := range c {
-			log.Printf("WARNING: Signal received: %s. Stoping...", sig.String())
-			select {
-			case <-time.After(time.Second * 10):
-				appCtx.Pool.Stop()
-				break
-			case <-func() chan bool {
-				ch := make(chan bool, 1)
-				ch <- true
-				appCtx.Pool.Drain()
-				return ch
-			}():
-				log.Printf("INFO: worker pool drained successfully")
-				break
-			}
-			os.Exit(2)
 
+	utils.RegisterGracefulShutdown(func(signal os.Signal) {
+
+		log.Printf("WARNING: Signal received: %s. Stoping...", signal.String())
+		select {
+		case <-time.After(appCtx.Config.GracefulShutdownTimeout):
+			appCtx.Pool.Stop()
+			break
+		case <-func() chan bool {
+			ch := make(chan bool, 1)
+			ch <- true
+			appCtx.Pool.Drain()
+			return ch
+		}():
+			log.Printf("INFO: worker pool drained successfully")
+			break
 		}
-	}()
-
+	})
 	crs := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},                      // All origins
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"}, // Allowing only get, just an example
 	})
-	log.Printf("INFO: app started!")
 	go func() {
 		var metricsRouter = mux.NewRouter()
 		metricsRouter.Handle("/metrics", promhttp.Handler())
@@ -156,6 +151,7 @@ func main() {
 	// 	// for pprof
 	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
 	// }()
+	log.Printf("INFO: app started!")
 	log.Fatal(http.ListenAndServe(":8000", addAccessControlAllowOriginHeader(appCtx.Config, crs.Handler(router))))
 
 }

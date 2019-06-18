@@ -1,14 +1,14 @@
 package louis
 
 import (
-	"github.com/KazanExpress/louis/internal/pkg/config"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
 
 func TestThrottlerLock(t *testing.T) {
-	config := config.InitFrom("../../../.env")
+	config := utils.InitConfigFrom("../../../.env")
 	config.ThrottlerTimeout = 5 * time.Second
 	throt := NewThrottler(config)
 
@@ -22,7 +22,7 @@ func TestThrottlerLock(t *testing.T) {
 }
 
 func TestThrottlerUnlock(t *testing.T) {
-	config := config.InitFrom("../../../.env")
+	config := utils.InitConfigFrom("../../../.env")
 	config.ThrottlerTimeout = 5 * time.Second
 	throt := NewThrottler(config)
 

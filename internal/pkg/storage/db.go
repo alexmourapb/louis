@@ -2,7 +2,7 @@ package storage
 
 import (
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/config"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/jinzhu/gorm"
 	"strings"
 	// gorm dialects need to be included in that way
@@ -22,7 +22,7 @@ type DB struct {
 }
 
 // Open returns a DB reference for a data source.
-func Open(cfg *config.Config) (*DB, error) {
+func Open(cfg *utils.Config) (*DB, error) {
 
 	tmp := strings.Split(cfg.PostgresAddress, ":")
 	host := tmp[0]
@@ -66,11 +66,8 @@ func (db *DB) EnsureTransformations(trans []Transformation) error {
 
 func (db *DB) DropDB() error {
 
-	log.Printf("DROPINNG->")
 	lock.Lock()
 	defer lock.Unlock()
-	log.Printf("DROPINNG-->>>>")
-	defer log.Printf("DROPED-->>>>")
 	if db.driver == "pg" {
 		err := db.DropTableIfExists(&Image{}).Error
 		if err != nil {

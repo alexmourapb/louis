@@ -2,7 +2,7 @@ package storage
 
 import (
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/config"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -63,7 +63,7 @@ func (s *Suite) AfterTest(tn, sn string) {
 }
 
 func getDB() (*DB, error) {
-	cfg := config.InitFrom("../../../.env")
+	cfg := utils.InitConfigFrom("../../../.env")
 	return Open(cfg)
 }
 

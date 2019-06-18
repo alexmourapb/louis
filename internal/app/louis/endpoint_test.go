@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	// "github.com/KazanExpress/louis/internal/pkg/queue"
-	"github.com/KazanExpress/louis/internal/pkg/config"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +55,7 @@ type Suite struct {
 func (s *Suite) SetupSuite() {
 	log.Printf("Executing setup all suite")
 	appCtx := &AppContext{}
-	appCtx.Config = config.InitFrom("../../../.env")
+	appCtx.Config = utils.InitConfigFrom("../../../.env")
 
 	s.appCtx = appCtx
 	appCtx.WithWork()
@@ -376,7 +376,7 @@ func ensureDatabaseStateAfterClaim(t *testing.T, appCtx *AppContext, imageKey st
 func getAppContext() (*AppContext, error) {
 	var err error
 	appCtx := &AppContext{}
-	appCtx.Config = config.InitFrom("../../../.env")
+	appCtx.Config = utils.InitConfigFrom("../../../.env")
 
 	if appCtx.DB, err = storage.Open(appCtx.Config); err != nil {
 		return nil, err

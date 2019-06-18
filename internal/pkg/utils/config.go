@@ -1,4 +1,4 @@
-package config
+package utils
 
 import (
 	"github.com/joho/godotenv"
@@ -34,24 +34,26 @@ type Config struct {
 	MemoryWatcherEnabled       bool          `envconfig:"MEMORY_WATCHER_ENABLED" default:"false"`
 	MemoryWatcherLimitBytes    int64         `envconfig:"MEMORY_WATCHER_LIMIT_BYTES" default:"1610612736"` // 1.5 GB
 	MemoryWatcherCheckInterval time.Duration `envconfig:"MEMORY_WATCHER_CHECK_INTERVAL" default:"10m"`     // 1.5 GB
+
+	GracefulShutdownTimeout time.Duration `default:"10s" split_words:"true"`
 }
 
 // App - application configs
 
-func Init() *Config {
+func InitConfig() *Config {
 
 	envPath := flag.String("env", ".env", "path to file with environment variables")
 	transformsPath := flag.String("transforms-path", "ensure-transforms.json", "path to file containing JSON transforms to ensure")
 
 	flag.Parse()
 
-	conf := InitFrom(*envPath)
+	conf := InitConfigFrom(*envPath)
 	conf.TransformsPath = *transformsPath
 	return conf
 }
 
-// InitFrom - initializes configs from env file
-func InitFrom(envPath string) *Config {
+// InitConfigFrom - initializes configs from env file
+func InitConfigFrom(envPath string) *Config {
 
 	App := &Config{}
 

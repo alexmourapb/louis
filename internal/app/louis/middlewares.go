@@ -2,14 +2,14 @@ package louis
 
 import (
 	"context"
-	"github.com/KazanExpress/louis/internal/pkg/config"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"golang.org/x/sync/semaphore"
 	"log"
 	"net/http"
 	"time"
 )
 
-func NewThrottler(cfg *config.Config) *Throttler {
+func NewThrottler(cfg *utils.Config) *Throttler {
 	return &Throttler{
 		semaphore: semaphore.NewWeighted(cfg.ThrottlerQueueLength),
 		timeout:   cfg.ThrottlerTimeout,
