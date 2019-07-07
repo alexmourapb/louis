@@ -103,10 +103,11 @@ func (db *DB) GetImagesWithKeys(keys []string) (res *[]Image, err error) {
 
 func (db *DB) AddImage(imageKey string, userID int32, tags ...string) (ImageID int64, err error) {
 	var img = &Image{
-		UserID:      userID,
-		Key:         imageKey,
-		Tags:        tags,
-		Progressive: true,
+		UserID:       userID,
+		Key:          imageKey,
+		Tags:         tags,
+		Progressive:  true,
+		WithRealCopy: true,
 	}
 	err = db.Create(img).Error
 	return img.ID, err
@@ -135,7 +136,11 @@ func (db *DB) SetTransformsUploaded(imgID int64) error {
 
 	img := &Image{ID: imgID}
 	err := db.Model(img).
-		Updates(map[string]interface{}{"Transforms_Uploaded": true, "Transforms_Upload_Date": "now()"}).Error
+		Updates(map[string]interface{}{
+			"Transforms_Uploaded":    true,
+			"Transforms_Upload_Date": "now()",
+			"Applied_Tags":           gorm.Expr("Tags"),
+		}).Error
 
 	return err
 }

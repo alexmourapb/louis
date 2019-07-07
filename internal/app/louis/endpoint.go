@@ -23,8 +23,18 @@ import (
 )
 
 const (
+	// "original" transform is not really original image,
+	// instead, it's transform which does not change dimension size of image
+	// and compresses it a bit
 	OriginalTransformName    = "original"
 	OriginalTransformQuality = 70
+	// At some moment, we came up with a need to make new transforms on old images
+	// But there is no real copy of uploaded image, only "original" image which lost
+	// some quality. So, if we will apply new transforms on "original" transform
+	// quality of resulting images will differ from quality of images resulted from
+	// applying new transforms for newly uploaded images. By this, it was decided
+	// to add "real" transform, which uploads image as it is
+	RealTransformName = "real"
 )
 
 type ImageData struct {
@@ -100,9 +110,13 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 		mapLock.Unlock()
 	}
 
+	// TODO: add cleanup for unused images
+	// TODO: add metadata for images describing where the image is used (for cleaning images)
+	// TODO: move original and real transforms as obligatory transform for any image
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	defer cancelCtx()
-	wg.Add(1 + len(trans))
+	wg.Add(2 + len(trans))
+
 	go func(ctx context.Context) {
 		defer wg.Done()
 		buf, err := bimg.NewImage(*buffer).Process(bimg.Options{
@@ -117,6 +131,15 @@ func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string,
 		}
 		url, err := storage.UploadFileWithContext(ctx, bytes.NewReader(buf), makePath(OriginalTransformName, imgKey))
 		addTransformURL(OriginalTransformName, url)
+		if err != nil {
+			ers <- err
+		}
+	}(ctx)
+
+	go func(ctx context.Context) {
+		defer wg.Done()
+		url, err := storage.UploadFileWithContext(ctx, bytes.NewReader(*buffer), makePath(RealTransformName, imgKey))
+		addTransformURL(RealTransformName, url)
 		if err != nil {
 			ers <- err
 		}
@@ -246,6 +269,7 @@ func (appCtx *AppContext) parseAndUpload(w http.ResponseWriter, r *http.Request,
 	return false, transformsURLs, imgKey
 }
 
+// TODO: refactor logging
 func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -274,6 +298,7 @@ func UploadHandler(appCtx *AppContext) http.HandlerFunc {
 	})
 }
 
+// TODO: refactor parsing args into separate function
 func ClaimHandler(appCtx *AppContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, err := authorizeBySecretKey(r.Header.Get("Authorization"))
