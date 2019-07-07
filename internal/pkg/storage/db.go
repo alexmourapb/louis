@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/jinzhu/gorm"
@@ -15,6 +16,8 @@ import (
 const (
 	TagLength = 20
 )
+
+var ErrorNoRowsInResultSet = errors.New("sql: no rows in result set")
 
 type DB struct {
 	*gorm.DB
@@ -55,7 +58,7 @@ func (db *DB) InitDB() error {
 func (db *DB) EnsureTransformations(trans []Transformation) error {
 	for _, tr := range trans {
 		err := db.Set("gorm:insert_option", "ON CONFLICT (name) DO NOTHING").Create(&tr).Error
-		if err != nil {
+		if err != nil && err.Error() != ErrorNoRowsInResultSet.Error() {
 			return err
 		}
 	}
