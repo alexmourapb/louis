@@ -12,6 +12,10 @@ import (
 	"os"
 )
 
+type ObjectId = *s3.ObjectIdentifier
+
+// TODO: make storage context
+
 // UploadFile - uploads the file with objectKey key
 func UploadFile(file io.Reader, objectKey string) (string, error) {
 
@@ -63,8 +67,45 @@ func getSession() *session.Session {
 	}))
 }
 
-// DeleteFolder - Deletes all files with given prefix
-func DeleteFolder(prefix string) error {
+// TODO: save real images when deleting unapproved
+
+func CopyObject(source, dest string) error {
+	var session = getSession()
+
+	var service = s3.New(session)
+	var _, err = service.CopyObject(&s3.CopyObjectInput{
+		CopySource: aws.String(*getBucket() + "/" + source),
+		Key:        aws.String(dest),
+		ACL:        aws.String("public-read"),
+		Bucket:     getBucket(),
+	})
+
+	return err
+}
+
+func ListFiles(prefix string) ([]ObjectId, error) {
+	sess := getSession()
+
+	svc := s3.New(sess)
+
+	objects, err := svc.ListObjects(&s3.ListObjectsInput{
+		Bucket: getBucket(),
+		Prefix: aws.String(prefix),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	obIdentifiers := make([]ObjectId, len(objects.Contents))
+	for i, obj := range objects.Contents {
+		obIdentifiers[i] = &s3.ObjectIdentifier{Key: obj.Key}
+	}
+
+	return obIdentifiers, nil
+}
+
+func DeleteFiles(obIdentifiers []ObjectId) error {
 	sess := getSession()
 
 	svc := s3.New(sess)
@@ -79,24 +120,21 @@ func DeleteFolder(prefix string) error {
 		}
 	})
 
-	objects, err := svc.ListObjects(&s3.ListObjectsInput{
-		Bucket: getBucket(),
-		Prefix: aws.String(prefix),
-	})
-
-	if err != nil {
-		return err
-	}
-	obIdentifiers := make([]*s3.ObjectIdentifier, len(objects.Contents))
-	for i, obj := range objects.Contents {
-		obIdentifiers[i] = &s3.ObjectIdentifier{Key: obj.Key}
-	}
-
-	_, err = svc.DeleteObjects(&s3.DeleteObjectsInput{
+	var _, err = svc.DeleteObjects(&s3.DeleteObjectsInput{
 		Bucket: getBucket(),
 		Delete: &s3.Delete{
 			Objects: obIdentifiers,
 		},
 	})
 	return err
+}
+
+// DeleteFolder - Deletes all files with given prefix
+func DeleteFolder(prefix string) error {
+	var files, err = ListFiles(prefix)
+	if err != nil {
+		return err
+	}
+
+	return DeleteFiles(files)
 }

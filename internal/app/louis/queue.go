@@ -2,6 +2,7 @@ package louis
 
 import (
 	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"strings"
 	// "github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/gocraft/work"
 	"github.com/gomodule/redigo/redis"
@@ -35,10 +36,24 @@ func (appCtx *CleanupTaskCtx) Cleanup(job *work.Job) error {
 		return nil
 	}
 	log.Printf("CLEANUP_POOL: image with key=%v is not approved, deleting it", imgKey)
-	err = storage.DeleteFolder(imgKey)
+
+	files, err := storage.ListFiles(imgKey)
 	if err != nil {
 		return err
 	}
+	var filteredFiles = make([]storage.ObjectId, 0)
+	for _, file := range files {
+		if strings.HasSuffix(*file.Key, RealTransformName+"."+ImageExtension) {
+			continue
+		}
+		filteredFiles = append(filteredFiles, file)
+	}
+
+	err = storage.DeleteFiles(filteredFiles)
+	if err != nil {
+		return err
+	}
+
 	defer log.Printf("CLEANUP_POOL: image with key=%v deleted", imgKey)
 	return appCtx.DB.DeleteImage(imgKey)
 }

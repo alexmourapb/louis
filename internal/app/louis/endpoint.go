@@ -35,6 +35,7 @@ const (
 	// applying new transforms for newly uploaded images. By this, it was decided
 	// to add "real" transform, which uploads image as it is
 	RealTransformName = "real"
+	ImageExtension    = "jpg"
 )
 
 type ImageData struct {
@@ -90,7 +91,7 @@ func makeTransformsPayload(imgKey string, transformationsURLs map[string]string)
 }
 
 func makePath(transformName, imageKey string) string {
-	return fmt.Sprintf("%s/%s.jpg", imageKey, transformName)
+	return fmt.Sprintf("%s/%s.%s", imageKey, transformName, ImageExtension)
 }
 
 func (appCtx *AppContext) uploadPictureAndTransforms(imgID int64, imgKey string, buffer *[]byte) (map[string]string, error) {

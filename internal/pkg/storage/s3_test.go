@@ -56,6 +56,28 @@ func TestDeleteFolder(t *testing.T) {
 
 }
 
+func TestCopyObject(t *testing.T) {
+	assert := assert.New(t)
+
+	var filename = "../../../test/data/picture.jpg"
+	var fileKey = "copy-test-dir/original.jpg"
+	var copyFileKey = "copy-test-dir/copy.jpg"
+
+	godotenv.Load("../../../.env")
+
+	f, ferr := os.Open(filename)
+	assert.NoError(ferr, "should be able to open file")
+
+	defer DeleteFolder("copy-test-dir")
+
+	_, err := UploadFile(f, fileKey)
+	assert.NoError(err, "should be uploaded successfully")
+
+	err = CopyObject(fileKey, copyFileKey)
+	assert.NoError(err, "should be copied successfully")
+
+}
+
 func ensureFilesDeleted(t *testing.T, prefix string) {
 	sess := getSession()
 
