@@ -1,6 +1,7 @@
 kind: pipeline
 name: default
 
+# TODO: add test phase
 steps:
 - name: dockerhub
   image: plugins/docker
