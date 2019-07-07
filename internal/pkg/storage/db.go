@@ -141,7 +141,7 @@ func (db *DB) SetTransformsUploaded(imgID int64) error {
 	err := db.Model(img).
 		Updates(map[string]interface{}{
 			"Transforms_Uploaded":    true,
-			"Transforms_Upload_Date": "now()",
+			"Transforms_Upload_Date": time.Now(),
 			"Applied_Tags":           gorm.Expr("Tags"),
 		}).Error
 
