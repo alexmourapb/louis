@@ -15,13 +15,13 @@ func TestThrottlerLock(t *testing.T) {
 	assert := assert.New(t)
 
 	for i := int64(0); i < config.ThrottlerQueueLength; i++ {
-		assert.True(throt.Lock())
+		assert.True(throt.lock())
 	}
 
-	assert.False(throt.Lock())
+	assert.False(throt.lock())
 }
 
-func TestThrottlerUnlock(t *testing.T) {
+func TestThrottleuUnlock(t *testing.T) {
 	config := utils.InitConfigFrom("../../../.env")
 	config.ThrottlerTimeout = 5 * time.Second
 	throt := NewThrottler(config)
@@ -29,10 +29,10 @@ func TestThrottlerUnlock(t *testing.T) {
 	assert := assert.New(t)
 
 	for i := int64(0); i < config.ThrottlerQueueLength; i++ {
-		assert.True(throt.Lock())
+		assert.True(throt.lock())
 	}
 
-	throt.Unlock()
+	throt.unlock()
 
-	assert.True(throt.Lock())
+	assert.True(throt.lock())
 }

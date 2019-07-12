@@ -3,27 +3,58 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"io"
-	"os"
+	"io/ioutil"
 )
 
-type ObjectId = *s3.ObjectIdentifier
+// ObjectID - is a shortcut for s3.ObjectIdentifier
+type ObjectID = *s3.ObjectIdentifier
+
+var NoSuchKeyError = errors.New("no such key")
+
+// S3Context - context to work with s3 methods
+type S3Context struct {
+	session *session.Session
+	config  *utils.Config
+}
+
+// InitS3Context - creates and inits session for s3
+func InitS3Context(cfg *utils.Config) (*S3Context, error) {
+	var ctx = &S3Context{
+		config: cfg,
+	}
+	var err error
+	ctx.session, err = session.NewSession(&aws.Config{
+		Endpoint: aws.String(cfg.S3Endpoint),
+		Region:   aws.String(cfg.S3Region),
+		Credentials: credentials.NewStaticCredentials(
+			cfg.S3AccessKeyID,
+			cfg.S3SecretAccessKey,
+			"",
+		),
+
+		// LogLevel: aws.LogLevel(aws.LogDebugWithHTTPBody),
+	})
+	return ctx, err
+}
 
 // TODO: make storage context
 
 // UploadFile - uploads the file with objectKey key
-func UploadFile(file io.Reader, objectKey string) (string, error) {
+func (ctx *S3Context) UploadFile(file io.Reader, objectKey string) (string, error) {
 
-	sess := getSession()
-
-	manager := s3manager.NewUploader(sess)
+	manager := s3manager.NewUploader(ctx.session)
 	out, err := manager.Upload(&s3manager.UploadInput{
-		Bucket: getBucket(),
+		Bucket: aws.String(ctx.config.S3Bucket),
 		Body:   file,
 		Key:    aws.String(objectKey),
 		ACL:    aws.String("public-read"),
@@ -35,13 +66,11 @@ func UploadFile(file io.Reader, objectKey string) (string, error) {
 }
 
 // UploadFileWithContext - uploads the file with objectKey key with context
-func UploadFileWithContext(ctx context.Context, file io.Reader, objectKey string) (string, error) {
+func (ctx *S3Context) UploadFileWithContext(cctx context.Context, file io.Reader, objectKey string) (string, error) {
 
-	sess := getSession()
-
-	manager := s3manager.NewUploader(sess)
-	out, err := manager.UploadWithContext(ctx, &s3manager.UploadInput{
-		Bucket: getBucket(),
+	manager := s3manager.NewUploader(ctx.session)
+	out, err := manager.UploadWithContext(cctx, &s3manager.UploadInput{
+		Bucket: aws.String(ctx.config.S3Bucket),
 		Body:   file,
 		Key:    aws.String(objectKey),
 		ACL:    aws.String("public-read"),
@@ -56,40 +85,48 @@ func UploadFileWithContext(ctx context.Context, file io.Reader, objectKey string
 	return out.Location, err
 }
 
-func getBucket() *string {
-	return aws.String(os.Getenv("S3_BUCKET"))
-}
+// CopyObject - make a copy of object
+func (ctx *S3Context) CopyObject(source, dest string) error {
 
-func getSession() *session.Session {
-	return session.Must(session.NewSession(&aws.Config{
-		Endpoint: aws.String(os.Getenv("S3_ENDPOINT")),
-		// LogLevel: aws.LogLevel(aws.LogDebugWithHTTPBody),
-	}))
-}
-
-// TODO: save real images when deleting unapproved
-
-func CopyObject(source, dest string) error {
-	var session = getSession()
-
-	var service = s3.New(session)
+	var service = s3.New(ctx.session)
 	var _, err = service.CopyObject(&s3.CopyObjectInput{
-		CopySource: aws.String(*getBucket() + "/" + source),
+		CopySource: aws.String(ctx.config.S3Bucket + "/" + source),
 		Key:        aws.String(dest),
 		ACL:        aws.String("public-read"),
-		Bucket:     getBucket(),
+		Bucket:     aws.String(ctx.config.S3Bucket),
 	})
 
 	return err
 }
 
-func ListFiles(prefix string) ([]ObjectId, error) {
-	sess := getSession()
+// GetObject - returns s3 object content
+func (ctx *S3Context) GetObject(objectKey string) ([]byte, error) {
+	var service = s3.New(ctx.session)
+	object, err := service.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(ctx.config.S3Bucket),
+		Key:    aws.String(objectKey),
+	})
 
-	svc := s3.New(sess)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchKey:
+				return nil, NoSuchKeyError
+			}
+		}
+		return nil, err
+	}
+
+	return ioutil.ReadAll(object.Body)
+}
+
+// ListFiles - list all objects with prefix
+func (ctx *S3Context) ListFiles(prefix string) ([]ObjectID, error) {
+
+	svc := s3.New(ctx.session)
 
 	objects, err := svc.ListObjects(&s3.ListObjectsInput{
-		Bucket: getBucket(),
+		Bucket: aws.String(ctx.config.S3Bucket),
 		Prefix: aws.String(prefix),
 	})
 
@@ -97,7 +134,7 @@ func ListFiles(prefix string) ([]ObjectId, error) {
 		return nil, err
 	}
 
-	obIdentifiers := make([]ObjectId, len(objects.Contents))
+	obIdentifiers := make([]ObjectID, len(objects.Contents))
 	for i, obj := range objects.Contents {
 		obIdentifiers[i] = &s3.ObjectIdentifier{Key: obj.Key}
 	}
@@ -105,10 +142,9 @@ func ListFiles(prefix string) ([]ObjectId, error) {
 	return obIdentifiers, nil
 }
 
-func DeleteFiles(obIdentifiers []ObjectId) error {
-	sess := getSession()
-
-	svc := s3.New(sess)
+// DeleteFiles - deletes objects from s3
+func (ctx *S3Context) DeleteFiles(obIdentifiers []ObjectID) error {
+	svc := s3.New(ctx.session)
 
 	svc.Handlers.Build.PushBack(func(r *request.Request) {
 
@@ -121,7 +157,7 @@ func DeleteFiles(obIdentifiers []ObjectId) error {
 	})
 
 	var _, err = svc.DeleteObjects(&s3.DeleteObjectsInput{
-		Bucket: getBucket(),
+		Bucket: aws.String(ctx.config.S3Bucket),
 		Delete: &s3.Delete{
 			Objects: obIdentifiers,
 		},
@@ -130,11 +166,11 @@ func DeleteFiles(obIdentifiers []ObjectId) error {
 }
 
 // DeleteFolder - Deletes all files with given prefix
-func DeleteFolder(prefix string) error {
-	var files, err = ListFiles(prefix)
+func (ctx *S3Context) DeleteFolder(prefix string) error {
+	var files, err = ctx.ListFiles(prefix)
 	if err != nil {
 		return err
 	}
 
-	return DeleteFiles(files)
+	return ctx.DeleteFiles(files)
 }

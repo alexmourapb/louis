@@ -16,22 +16,14 @@ const (
 )
 
 type AppContext struct {
-	DB       *storage.DB
-	Pool     *work.WorkerPool
-	Config   *utils.Config
-	Enqueuer *work.Enqueuer
-	Dropped  bool
+	DB           *storage.DB
+	Pool         *work.WorkerPool
+	Config       *utils.Config
+	Enqueuer     *work.Enqueuer
+	Storage      *storage.S3Context
+	ImageService ImageService
+	Dropped      bool
 }
-
-func SetGlobalCtx(ctx *AppContext) {
-	globalCtx = ctx
-}
-
-func GetGlobalCtx() *AppContext {
-	return globalCtx
-}
-
-var globalCtx *AppContext
 
 func (appCtx *AppContext) DropAll() error {
 

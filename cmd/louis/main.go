@@ -5,12 +5,9 @@ import (
 	"github.com/KazanExpress/louis/internal/app/louis"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/procfs"
-	"github.com/rs/cors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -34,20 +31,18 @@ func init() {
 	prometheus.MustRegister(bimgMemory)
 }
 
-func addAccessControlAllowOriginHeader(cfg *utils.Config, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Access-Control-Allow-Origin", cfg.CORSAllowOrigin)
-		w.Header().Add("Access-Control-Allow-Headers", cfg.CORSAllowHeaders)
-		next.ServeHTTP(w, r)
-	})
-}
-
 func getLouisAppContext() *louis.AppContext {
 	var err error
 	var appCtx = new(louis.AppContext)
 	appCtx.Config = utils.InitConfig()
 	appCtx.DB, err = storage.Open(appCtx.Config)
+	appCtx.ImageService = louis.NewLouisService(appCtx)
 
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	appCtx.Storage, err = storage.InitS3Context(appCtx.Config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,17 +99,10 @@ func main() {
 
 	appCtx := getLouisAppContext()
 
-	throttler := louis.NewThrottler(appCtx.Config)
-
 	runMemoryWatcher(appCtx)
 
 	// Register http handlers and start listening
-	router := mux.NewRouter()
-	router.HandleFunc("/", louis.GetDashboard).Methods("GET")
-	router.Handle("/upload", throttler.Throttle(louis.UploadHandler(appCtx))).Methods("POST")
-	router.Handle("/uploadWithClaim", throttler.Throttle(louis.UploadWithClaimHandler(appCtx))).Methods("POST")
-	router.HandleFunc("/claim", louis.ClaimHandler(appCtx)).Methods("POST")
-	router.HandleFunc("/healthz", louis.GetHealth(appCtx)).Methods("GET")
+	var server = louis.NewServer(appCtx)
 
 	utils.RegisterGracefulShutdown(func(signal os.Signal) {
 
@@ -133,18 +121,9 @@ func main() {
 			break
 		}
 	})
-	crs := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},                      // All origins
-		AllowedMethods: []string{"GET", "POST", "OPTIONS"}, // Allowing only get, just an example
-	})
+
 	go func() {
-		var metricsRouter = mux.NewRouter()
-		metricsRouter.Handle("/metrics", promhttp.Handler())
-		metricsRouter.HandleFunc("/free", func(w http.ResponseWriter, req *http.Request) {
-			debug.FreeOSMemory()
-			w.WriteHeader(200)
-		}).Methods("POST")
-		log.Fatal(http.ListenAndServe(":8001", metricsRouter))
+		log.Fatal(http.ListenAndServe(":8001", server.MetricsRouter()))
 	}()
 
 	// go func() {
@@ -152,6 +131,5 @@ func main() {
 	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
 	// }()
 	log.Printf("INFO: app started!")
-	log.Fatal(http.ListenAndServe(":8000", addAccessControlAllowOriginHeader(appCtx.Config, crs.Handler(router))))
-
+	log.Fatal(http.ListenAndServe(":8000", server.AppRouter()))
 }

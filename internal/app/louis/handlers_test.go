@@ -50,6 +50,7 @@ var tlist = []storage.Transformation{
 type Suite struct {
 	suite.Suite
 	appCtx *AppContext
+	server *Server
 }
 
 func (s *Suite) SetupSuite() {
@@ -58,6 +59,8 @@ func (s *Suite) SetupSuite() {
 	appCtx.Config = utils.InitConfigFrom("../../../.env")
 
 	s.appCtx = appCtx
+	s.server = NewServer(appCtx)
+
 	appCtx.WithWork()
 }
 
@@ -67,6 +70,11 @@ func (s *Suite) BeforeTest(tn, sn string) {
 	if s.appCtx.DB, err = storage.Open(s.appCtx.Config); err != nil {
 		s.Fail("failed to connect to db - %v", err)
 	}
+	if s.appCtx.Storage, err = storage.InitS3Context(s.appCtx.Config); err != nil {
+		s.Fail("failed to init to s3 storage - %v", err)
+	}
+
+	s.appCtx.ImageService = NewLouisService(s.appCtx)
 
 	log.Printf("Executing setup for test")
 	if err := s.appCtx.DB.InitDB(); err != nil {
@@ -95,17 +103,14 @@ func TestEndpointSuite(t *testing.T) {
 }
 
 func (s *Suite) TestClaimAuthorization() {
-	appCtx := s.appCtx
 
 	request, err := newClaimRequest("http://localhost:8000/claim", nil)
 	s.NoError(err)
 
 	response := httptest.NewRecorder()
-	ClaimHandler(appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	s.Equal(http.StatusUnauthorized, response.Code, "should respond with 401")
-
-	// appCtx.DropAll()
 
 }
 func (s *Suite) TestUploadAuthorization() {
@@ -118,12 +123,9 @@ func (s *Suite) TestUploadAuthorization() {
 
 	response := httptest.NewRecorder()
 
-	UploadHandler(s.appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	s.Equal(http.StatusUnauthorized, response.Code, "should respond with 401")
-
-	// appCtx.DropAll()
-
 }
 
 func (s *Suite) TestUpload() {
@@ -140,14 +142,14 @@ func (s *Suite) TestUpload() {
 	request, err := newFileUploadRequest("http://localhost:8000/upload", nil, "file", path)
 	assert.NoError(err, "failed to create file upload request")
 
-	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+	request.Header.Add("Authorization", appCtx.Config.PublicKey)
 
 	response := httptest.NewRecorder()
-	UploadHandler(appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
-	var resp ResponseTemplate
+	var resp responseTemplate
 	assert.NoError(json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
 	assert.Empty(resp.Error, "expected response error to be empty")
@@ -191,14 +193,14 @@ func (s *Suite) TestUploadWithClaim() {
 	request, err := newFileUploadRequest("http://localhost:8000/uploadWithClaim", nil, "file", path)
 	assert.NoError(err, "failed to create file upload request")
 
-	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))
+	request.Header.Add("Authorization", appCtx.Config.SecretKey)
 
 	response := httptest.NewRecorder()
-	UploadWithClaimHandler(appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
-	var resp ResponseTemplate
+	var resp responseTemplate
 	assert.NoError(json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
 	assert.Empty(resp.Error, "expected response error to be empty")
@@ -217,7 +219,7 @@ func (s *Suite) TestUploadWithClaim() {
 	img, err := appCtx.DB.QueryImageByKey(imageKey)
 	assert.NoError(err)
 	assert.True(img.Approved)
-	assert.Equal(url, img.URL, "url from response and in database should be the same")
+	assert.Equal(img.URL, url, "url from response and in database should be the same")
 
 }
 
@@ -229,12 +231,12 @@ func (s *Suite) TestUploadWithName() {
 	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": " tag1 , tag2 , super-tag", "key": mykey}, "file", path)
 	s.NoError(err)
 
-	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+	request.Header.Add("Authorization", s.appCtx.Config.PublicKey)
 	response := httptest.NewRecorder()
-	UploadHandler(s.appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	s.Equal(http.StatusOK, response.Code, "should respond with 200 OK")
-	var resp ResponseTemplate
+	var resp responseTemplate
 
 	s.NoError(json.Unmarshal(response.Body.Bytes(), &resp))
 	s.Empty(resp.Error)
@@ -253,14 +255,14 @@ func (s *Suite) TestUploadWithNameFail() {
 	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": " tag1 , tag2 , super-tag", "key": mykey}, "file", path)
 	s.NoError(err)
 
-	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+	request.Header.Add("Authorization", s.appCtx.Config.PublicKey)
 	response := httptest.NewRecorder()
-	UploadHandler(s.appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	s.Equal(http.StatusOK, response.Code, "should respond with 200 OK")
 
 	response = httptest.NewRecorder()
-	UploadHandler(s.appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	s.Equal(http.StatusBadRequest, response.Code)
 
@@ -275,14 +277,14 @@ func (s *Suite) TestUploadWithTags() {
 	request, err := newFileUploadRequest("http://localhost:8000/upload", map[string]string{"tags": " tag1 , tag2 , super-tag"}, "file", path)
 	failIfError(s.T(), err, "failed to create file upload request")
 
-	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+	request.Header.Add("Authorization", s.appCtx.Config.PublicKey)
 
 	response := httptest.NewRecorder()
-	UploadHandler(s.appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
-	var resp ResponseTemplate
+	var resp responseTemplate
 	failIfError(s.T(), json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
 	assert.Empty(resp.Error, "expected response error to be empty")
@@ -304,14 +306,14 @@ func (s *Suite) TestClaim() {
 
 	failIfError(s.T(), err, "failed to create file upload request")
 
-	request.Header.Add("Authorization", os.Getenv("LOUIS_PUBLIC_KEY"))
+	request.Header.Add("Authorization", s.appCtx.Config.PublicKey)
 
 	response := httptest.NewRecorder()
-	UploadHandler(s.appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
-	var resp ResponseTemplate
+	var resp responseTemplate
 	failIfError(s.T(), json.Unmarshal(response.Body.Bytes(), &resp), "failed to unmarshall response body")
 
 	assert.Empty(resp.Error, "expected response error to be empty")
@@ -326,9 +328,9 @@ func (s *Suite) TestClaim() {
 	request, err = newClaimRequest("http://localhost:8000/claim", map[string]interface{}{"keys": []string{imageKey}})
 
 	failIfError(s.T(), err, "failed to create claim request")
-	request.Header.Add("Authorization", os.Getenv("LOUIS_SECRET_KEY"))
+	request.Header.Add("Authorization", s.appCtx.Config.SecretKey)
 
-	ClaimHandler(s.appCtx)(response, request)
+	s.server.appRouter.ServeHTTP(response, request)
 
 	assert.Equal(http.StatusOK, response.Code, "should respond with 200")
 
@@ -336,7 +338,7 @@ func (s *Suite) TestClaim() {
 
 }
 
-func ensureTransformations(t *testing.T, appCtx *AppContext, resp ResponseTemplate) {
+func ensureTransformations(t *testing.T, appCtx *AppContext, resp responseTemplate) {
 	var payload = resp.Payload.(map[string]interface{})
 
 	imageKey := payload["key"].(string)

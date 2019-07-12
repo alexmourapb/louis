@@ -1,8 +1,6 @@
 package louis
 
 import (
-	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"strings"
 	// "github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/gocraft/work"
 	"github.com/gomodule/redigo/redis"
@@ -22,7 +20,6 @@ type CleanupTaskCtx struct {
 }
 
 func (appCtx *CleanupTaskCtx) Cleanup(job *work.Job) error {
-	appCtx.AppContext = GetGlobalCtx()
 	log.Printf("CLEANUP_POOL: received task with args [%v]", job.Args)
 
 	var imgKey = job.ArgString("key")
@@ -37,34 +34,26 @@ func (appCtx *CleanupTaskCtx) Cleanup(job *work.Job) error {
 	}
 	log.Printf("CLEANUP_POOL: image with key=%v is not approved, deleting it", imgKey)
 
-	files, err := storage.ListFiles(imgKey)
+	err = appCtx.ImageService.Archive(imgKey)
 	if err != nil {
-		return err
-	}
-	var filteredFiles = make([]storage.ObjectId, 0)
-	for _, file := range files {
-		if strings.HasSuffix(*file.Key, RealTransformName+"."+ImageExtension) {
-			continue
-		}
-		filteredFiles = append(filteredFiles, file)
-	}
-
-	err = storage.DeleteFiles(filteredFiles)
-	if err != nil {
+		log.Printf("ERROR: failed to cleanup: %v", err)
 		return err
 	}
 
-	defer log.Printf("CLEANUP_POOL: image with key=%v deleted", imgKey)
+	defer log.Printf("CLEANUP_POOL: image with key=%v archived", imgKey)
 	return appCtx.DB.DeleteImage(imgKey)
 }
 
 func InitPool(appCtx *AppContext, redisPool *redis.Pool) *work.WorkerPool {
 
-	SetGlobalCtx(appCtx)
-
 	pool := work.NewWorkerPool(CleanupTaskCtx{}, appCtx.Config.CleanupPoolConcurrency, CleanupNamespace, redisPool)
 
 	pool.Job(CleanupTask, (*CleanupTaskCtx).Cleanup)
+
+	pool.Middleware(func(c *CleanupTaskCtx, job *work.Job, next work.NextMiddlewareFunc) error {
+		c.AppContext = appCtx
+		return next()
+	})
 
 	pool.Start()
 

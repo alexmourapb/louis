@@ -4,10 +4,12 @@ import (
 	"gopkg.in/h2non/bimg.v1"
 )
 
+type ImageBuffer = []byte
+
 // Fit - the image is resized so that it takes up as much space as possible
 // within a bounding box defined by the given width and height parameters.
 // The original aspect ratio is retained and all of the original image is visible.
-func Fit(buffer []byte, side, quality int) ([]byte, error) {
+func Fit(buffer ImageBuffer, side, quality int) (ImageBuffer, error) {
 	var img = bimg.NewImage(buffer)
 
 	if img.Type() != "jpeg" {
@@ -42,7 +44,7 @@ func Fit(buffer []byte, side, quality int) ([]byte, error) {
 }
 
 // Fill - fills image to given width & height
-func Fill(buffer []byte, width, height, quality int) ([]byte, error) {
+func Fill(buffer ImageBuffer, width, height, quality int) (ImageBuffer, error) {
 	var img = bimg.NewImage(buffer)
 	return img.Process(bimg.Options{
 		Width:         width,
@@ -52,5 +54,15 @@ func Fill(buffer []byte, width, height, quality int) ([]byte, error) {
 		NoAutoRotate:  false,
 		StripMetadata: true,
 		Interlace:     true, // adds progressive jpeg support
+	})
+}
+
+// Compress - reduces quality of image
+func Compress(buffer ImageBuffer, quality int) (ImageBuffer, error) {
+	return bimg.NewImage(buffer).Process(bimg.Options{
+		Quality:       quality,
+		NoAutoRotate:  false,
+		Interlace:     true, // Adds progressive jpeg support
+		StripMetadata: true,
 	})
 }

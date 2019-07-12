@@ -36,6 +36,16 @@ type Config struct {
 	MemoryWatcherCheckInterval time.Duration `envconfig:"MEMORY_WATCHER_CHECK_INTERVAL" default:"10m"`     // 1.5 GB
 
 	GracefulShutdownTimeout time.Duration `default:"10s" split_words:"true"`
+
+	PublicKey string `envconfig:"LOUIS_PUBLIC_KEY"`
+	SecretKey string `envconfig:"LOUIS_SECRET_KEY"`
+
+	S3Bucket          string `split_words:"true"`
+	S3Region          string `default:"ru-msk" split_words:"true"`
+	S3Endpoint        string `split_words:"true"`
+	S3AccessKeyID     string `split_words:"true"`
+	S3SecretAccessKey string `split_words:"true"`
+	S3BucketEndpoint  string `split_words:"true"`
 }
 
 // App - application configs
@@ -45,6 +55,7 @@ func InitConfig() *Config {
 	envPath := flag.String("env", ".env", "path to file with environment variables")
 	transformsPath := flag.String("transforms-path", "ensure-transforms.json", "path to file containing JSON transforms to ensure")
 
+	// TODO: remove flag? do we really need it?
 	flag.Parse()
 
 	conf := InitConfigFrom(*envPath)
@@ -62,7 +73,7 @@ func InitConfigFrom(envPath string) *Config {
 		log.Printf("INFO: failed to read env file: %v", err)
 	}
 
-	err = envconfig.Process("louis", App)
+	err = envconfig.Process("", App)
 
 	if err != nil {
 		panic(err)

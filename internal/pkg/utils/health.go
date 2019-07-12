@@ -1,4 +1,4 @@
-package louis
+package utils
 
 // this file was copied from imaginary project
 // https://github.com/h2non/imaginary/blob/master/health.go
