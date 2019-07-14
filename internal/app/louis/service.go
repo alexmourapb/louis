@@ -15,21 +15,24 @@ import (
 var (
 	ImageCanNotBeRestoredError = fmt.Errorf("image can not be restored")
 	ImageNotArchivedError      = fmt.Errorf("image is not archived, nothing to restore")
+
+	realTransformation     = storage.Transformation{Type: "real", Name: RealTransformName}
+	originalTransformation = storage.Transformation{Type: "original", Name: OriginalTransformName, Quality: OriginalTransformQuality}
 )
 
 // ImageService - interface of a service for uploading and transforming image
 type ImageService interface {
 	// Get()
-	Upload(*UploadArgs) (*UploadResults, error)
+	Upload(*UploadArgs) (map[string]string, error)
 	// Approve()
 	Archive(imageKey string) error
-	// Restore(key string)
+	Restore(key string) error
 }
 
 type UploadArgs struct {
-	Transformations []storage.Transformation
-	ImageKey        string
-	Image           ImageBuffer
+	ImageKey string
+	ImageID  int64
+	Image    ImageBuffer
 }
 
 type UploadResults struct {
@@ -49,13 +52,12 @@ func NewLouisService(ctx *AppContext) *LouisService {
 
 type ImageBuffer = []byte
 
-type ImageTransformer = func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error)
+type imageTransformer = func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error)
 
-// UploadImage - upload original image and it's transformations
-func (svc *LouisService) Upload(args *UploadArgs) (*UploadResults, error) {
+func (svc *LouisService) upload(transformationsList []storage.Transformation, image ImageBuffer, imageKey string) (map[string]string, error) {
 
 	var wg sync.WaitGroup
-	var allTransformationsCount = len(args.Transformations) + 2 // 2 additional transformations: original and real
+	var allTransformationsCount = len(transformationsList)
 	var errors = make(chan error, allTransformationsCount)
 	var transformURLs = utils.NewConcurrentMap()
 
@@ -64,9 +66,9 @@ func (svc *LouisService) Upload(args *UploadArgs) (*UploadResults, error) {
 
 	wg.Add(allTransformationsCount)
 
-	var makeTransformation = func(localCtx context.Context, transformName string, transformer ImageTransformer, trans *storage.Transformation) {
+	var makeTransformation = func(localCtx context.Context, transformName string, transformer imageTransformer, trans *storage.Transformation) {
 		defer wg.Done()
-		var transformedImage, err = transformer(args.Image, trans)
+		var transformedImage, err = transformer(image, trans)
 		if err != nil {
 			errors <- err
 			return
@@ -74,46 +76,22 @@ func (svc *LouisService) Upload(args *UploadArgs) (*UploadResults, error) {
 		url, err := svc.ctx.Storage.UploadFileWithContext(
 			localCtx,
 			bytes.NewReader(transformedImage),
-			makePath(transformName, args.ImageKey))
+			makePath(transformName, imageKey))
 		transformURLs.Set(transformName, url)
 		if err != nil {
 			errors <- err
 		}
 	}
 
-	go makeTransformation(ctx, RealTransformName,
-		func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error) {
-			return image, nil
-		},
-		nil,
-	)
+	var mappings = transformations.GetTransformsMappings()
 
-	go makeTransformation(ctx, OriginalTransformName,
-		func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error) {
-			return transformations.Compress(image, OriginalTransformQuality)
-		},
-		nil,
-	)
+	for _, tr := range transformationsList {
 
-	var fitTransformer = func(image ImageBuffer, tran *storage.Transformation) (ImageBuffer, error) {
-		return transformations.Fit(image, tran.Width, tran.Quality)
-	}
-
-	var fillTransformer = func(image ImageBuffer, tran *storage.Transformation) (ImageBuffer, error) {
-		return transformations.Fill(image, tran.Width, tran.Height, tran.Quality)
-	}
-
-	for _, tr := range args.Transformations {
-		switch tr.Type {
-		case "fit":
-			go makeTransformation(ctx, tr.Name, fitTransformer, &tr)
-			break
-		case "fill":
-			go makeTransformation(ctx, tr.Name, fillTransformer, &tr)
-			break
-		default:
-			log.Printf("WARN: unknown transformation type: %v", tr.Type)
-			wg.Done()
+		var transformer, exists = mappings[tr.Type]
+		if exists {
+			go makeTransformation(ctx, tr.Name, transformer, &tr)
+		} else {
+			log.Printf("WARN: unkown transform type %v", tr.Type)
 		}
 	}
 	select {
@@ -136,11 +114,32 @@ func (svc *LouisService) Upload(args *UploadArgs) (*UploadResults, error) {
 		default:
 			terr = nil
 		}
-		return &UploadResults{
-			TransformURLs: transformURLs.ToMap(),
-		}, terr
+		return transformURLs.ToMap(), terr
 
 	}
+}
+
+// Upload - upload original image and it's transformations
+func (svc *LouisService) Upload(args *UploadArgs) (map[string]string, error) {
+
+	var newTransformationsList, err = svc.ctx.DB.GetTransformations(args.ImageID)
+	if err != nil {
+		return nil, err
+	}
+
+	newTransformationsList = append(newTransformationsList,
+		realTransformation,
+		originalTransformation,
+	)
+
+	transformUrls, err := svc.upload(newTransformationsList, args.Image, args.ImageKey)
+	if err != nil {
+		return nil, err
+	}
+
+	err = svc.ctx.DB.SetTransformsUploaded(args.ImageID)
+
+	return transformUrls, err
 }
 
 // Archive - delete all transforms except real
@@ -158,18 +157,56 @@ func (svc *LouisService) Archive(imageKey string) error {
 		filteredFiles = append(filteredFiles, file)
 	}
 
-	return svc.ctx.Storage.DeleteFiles(filteredFiles)
+	err = svc.ctx.Storage.DeleteFiles(filteredFiles)
+	if err != nil {
+		return err
+	}
+
+	return svc.ctx.DB.DeleteImage(imageKey)
 }
 
-// func (svc *LouisService) Restore(image *storage.Image) error {
-// 	if !image.Deleted {
-// 		return ImageNotArchivedError
-//     }
+func (svc *LouisService) Restore(imageKey string) error {
 
-//     var imageTransformToUse = OriginalTransformName
-//     if image.WithRealCopy {
-//         imageTransformToUse = RealTransformName
-//     }
+	var image, err = svc.ctx.DB.QueryImageByKey(imageKey)
 
-//     // svc.ctx.Storage.
-// }
+	if err != nil {
+		return err
+	}
+
+	if !image.Deleted {
+		return ImageNotArchivedError
+	}
+
+	var imageTransformToUse = OriginalTransformName
+	var additionalTransformation = realTransformation
+	if image.WithRealCopy {
+		imageTransformToUse = RealTransformName
+		additionalTransformation = originalTransformation
+	}
+
+	baseImage, err := svc.ctx.Storage.GetObject(makePath(imageTransformToUse, image.Key))
+
+	if err != nil {
+		if err == storage.NoSuchKeyError {
+			return ImageCanNotBeRestoredError
+		}
+		return err
+	}
+
+	transformationsList, err := svc.ctx.DB.GetTransformations(image.ID)
+
+	if err != nil {
+		return err
+	}
+
+	transformationsList = append(transformationsList, additionalTransformation)
+
+	_, err = svc.upload(transformationsList, baseImage, imageKey)
+
+	if err != nil {
+		return err
+	}
+
+	return svc.ctx.DB.SetImageRestored(imageKey)
+
+}

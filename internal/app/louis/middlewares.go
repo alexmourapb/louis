@@ -50,10 +50,10 @@ func (t *Throttler) Throttle(next http.Handler) http.Handler {
 			defer t.unlock()
 			next.ServeHTTP(w, r)
 		} else {
-			err := respondWithJSON(w, "too many requests", nil, 503)
+			err := respondWithJSON(w, "too many requests", nil, http.StatusTooManyRequests)
 			if err != nil {
 				log.Printf("ERROR: failed to respond with 'too many requests' - %s", err)
-				w.WriteHeader(503)
+				w.WriteHeader(http.StatusTooManyRequests)
 			}
 		}
 	})

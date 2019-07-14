@@ -1,6 +1,7 @@
 package transformations
 
 import (
+	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"gopkg.in/h2non/bimg.v1"
 )
 
@@ -65,4 +66,25 @@ func Compress(buffer ImageBuffer, quality int) (ImageBuffer, error) {
 		Interlace:     true, // Adds progressive jpeg support
 		StripMetadata: true,
 	})
+}
+
+// ImageTransformer - is shortcut type
+type ImageTransformer = func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error)
+
+// GetTransformsMappings - returns map containing transformers for each transform type
+func GetTransformsMappings() map[string]ImageTransformer {
+	return map[string]ImageTransformer{
+		"fill": func(image ImageBuffer, tran *storage.Transformation) (ImageBuffer, error) {
+			return Fill(image, tran.Width, tran.Height, tran.Quality)
+		},
+		"fit": func(image ImageBuffer, tran *storage.Transformation) (ImageBuffer, error) {
+			return Fit(image, tran.Width, tran.Quality)
+		},
+		"real": func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error) {
+			return image, nil
+		},
+		"original": func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error) {
+			return Compress(image, trans.Quality)
+		},
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/KazanExpress/louis/internal/pkg/utils"
+	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	"github.com/rs/xid"
 	"io/ioutil"
@@ -47,29 +48,6 @@ func withSession(ctx *AppContext) func(sessionHandler) http.HandlerFunc {
 
 }
 
-func (s *session) uploadPictureAndTransforms(imgID int64, imgKey string, buffer *[]byte) (map[string]string, error) {
-	trans, err := s.ctx.DB.GetTransformations(imgID)
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := s.ctx.ImageService.Upload(&UploadArgs{
-		Transformations: trans,
-		ImageKey:        imgKey,
-		Image:           *buffer,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.ctx.DB.SetTransformsUploaded(imgID)
-	if err != nil {
-		log.Printf("ERROR: failed to mark image as transformed - %v", err)
-	}
-	return result.TransformURLs, err
-}
-
 func (s *session) tryCreateImageRecord(w http.ResponseWriter, r *http.Request) (int64, bool) {
 
 	if s.args.imageKey == "" {
@@ -90,7 +68,7 @@ func (s *session) tryCreateImageRecord(w http.ResponseWriter, r *http.Request) (
 	return imgID, true
 }
 
-func parseRequestBody(r *http.Request) (*imageData, error) {
+func parseClaimRequestBody(r *http.Request) (*imageData, error) {
 	var body, err = ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
@@ -111,7 +89,7 @@ func parseRequestBody(r *http.Request) (*imageData, error) {
 }
 
 func handleClaim(s *session, w http.ResponseWriter, r *http.Request) {
-	var img, err = parseRequestBody(r)
+	var img, err = parseClaimRequestBody(r)
 
 	if err != nil {
 		respondWithJSON(w, err.Error(), nil, http.StatusBadRequest)
@@ -155,7 +133,11 @@ func handleUploadWithClaim(s *session, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transformsURLs, err := s.uploadPictureAndTransforms(imgID, s.args.imageKey, &s.args.image)
+	transformsURLs, err := s.ctx.ImageService.Upload(&UploadArgs{
+		ImageID:  imgID,
+		ImageKey: s.args.imageKey,
+		Image:    s.args.image,
+	})
 
 	if failOnError(w, err, "failed to upload transforms", http.StatusInternalServerError) {
 		return
@@ -180,8 +162,11 @@ func handleUpload(s *session, w http.ResponseWriter, r *http.Request) {
 		// response in prev method
 		return
 	}
-
-	transformsURLs, err := s.uploadPictureAndTransforms(imgID, s.args.imageKey, &s.args.image)
+	transformsURLs, err := s.ctx.ImageService.Upload(&UploadArgs{
+		ImageID:  imgID,
+		ImageKey: s.args.imageKey,
+		Image:    s.args.image,
+	})
 
 	if failOnError(w, err, "failed to upload transforms", http.StatusInternalServerError) {
 		return
@@ -198,6 +183,28 @@ func handleUpload(s *session, w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("INFO: image with key %v and %v transforms uploaded", s.args.imageKey, len(transformsURLs))
 	respondWithJSON(w, "", makeTransformsPayload(s.args.imageKey, transformsURLs), 200)
+}
+
+func handleRestore(s *session, w http.ResponseWriter, r *http.Request) {
+	var vars = mux.Vars(r)
+	var imageKey, passed = vars["imageKey"]
+
+	if !passed {
+		respondWithJSON(w, "imageKey is not passed", nil, http.StatusBadRequest)
+		return
+	}
+
+	var err = s.ctx.ImageService.Restore(imageKey)
+	if err != nil {
+		if err == ImageCanNotBeRestoredError {
+			respondWithJSON(w, err.Error(), nil, http.StatusPreconditionFailed)
+		} else {
+			respondWithJSON(w, "failed to restore image: "+err.Error(), nil, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	respondWithJSON(w, "", "ok", http.StatusAccepted)
 }
 
 // simple handlers without need of session

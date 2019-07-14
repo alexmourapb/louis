@@ -40,8 +40,9 @@ func (appCtx *CleanupTaskCtx) Cleanup(job *work.Job) error {
 		return err
 	}
 
-	defer log.Printf("CLEANUP_POOL: image with key=%v archived", imgKey)
-	return appCtx.DB.DeleteImage(imgKey)
+	log.Printf("CLEANUP_POOL: image with key=%v archived", imgKey)
+
+	return nil
 }
 
 func InitPool(appCtx *AppContext, redisPool *redis.Pool) *work.WorkerPool {

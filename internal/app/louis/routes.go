@@ -59,6 +59,12 @@ func (s *Server) initRoutes() {
 			authorize(s.ctx.Config.SecretKey)(handleClaim),
 		)).Methods("POST")
 
+	s.appRouter.Handle("/restore/{imageKey}",
+		throttler.Throttle(
+			withSession(s.ctx)(
+				authorize(s.ctx.Config.SecretKey)(handleRestore))),
+	).Methods("POST")
+
 	s.appRouter.HandleFunc("/healthz", handleHealth).Methods("GET")
 
 	s.metricsRouter.Handle("/metrics", promhttp.Handler())
