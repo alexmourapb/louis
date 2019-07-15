@@ -3,6 +3,7 @@ package louis
 import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 )
 
 type Server struct {
@@ -15,8 +16,8 @@ func (s *Server) MetricsRouter() *mux.Router {
 	return s.metricsRouter
 }
 
-func (s *Server) AppRouter() *mux.Router {
-	return s.appRouter
+func (s *Server) AppRouter() http.Handler {
+	return addAccessControlAllowOriginHeader(s.ctx.Config)(corsMiddleware()(s.appRouter))
 }
 
 func NewServer(ctx *AppContext) *Server {
@@ -33,13 +34,13 @@ func (s *Server) initRoutes() {
 
 	var throttler = NewThrottler(s.ctx.Config)
 
-	s.appRouter.Use(addAccessControlAllowOriginHeader(s.ctx.Config))
-	s.appRouter.Use(corsMiddleware())
+	// NOTE: this shit does not work, see - https://github.com/gorilla/handlers/issues/142
+	// s.appRouter.Use(addAccessControlAllowOriginHeader(s.ctx.Config))
+	// s.appRouter.Use(corsMiddleware())
 	s.appRouter.Use(recoverFromPanic)
 
 	s.appRouter.HandleFunc("/", handleDashboard).Methods("GET")
 
-	// s.appRouter.Handle("/upload", throttler.Throttle(UploadHandler(s.ctx))).Methods("POST")
 	s.appRouter.Handle("/upload",
 		throttler.Throttle(
 			withSession(s.ctx)(

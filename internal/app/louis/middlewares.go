@@ -85,7 +85,7 @@ func addAccessControlAllowOriginHeader(cfg *utils.Config) func(http.Handler) htt
 func corsMiddleware() mux.MiddlewareFunc {
 	var crs = cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},                      // All origins
-		AllowedMethods: []string{"GET", "POST", "OPTIONS"}, // Allowing only get, just an example
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"}, // Allowing only get, post and options
 	})
 	return crs.Handler
 }
