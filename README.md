@@ -83,9 +83,9 @@ List of available configuration options:
 | `CLEANUP_POOL_CONCURRENCY` | Number of concurrent cleanup gorutines | `10` | No |
 | `S3_BUCKET` | Name of S3 bucket |  | Yes |
 | `S3_ENDPOINT` | By default AWS endpoint is used Should be set if another S3 compatible storage is used | AWS S3 | No |
-| `AWS_REGION` | Region where S3 is stored |  | Yes |
-| `AWS_ACCESS_KEY_ID` | Your S3 access key ID |  | Yes |
-| `AWS_SECRET_ACCESS_KEY` | Your S3 secret key |  | Yes |
+| `S3_REGION` | Region where S3 is stored |  | Yes |
+| `S3_ACCESS_KEY_ID` | Your S3 access key ID |  | Yes |
+| `S3_SECRET_ACCESS_KEY` | Your S3 secret key |  | Yes |
 | `REDIS_URL` |  | `:6379` | No |
 | `POSTGRES_ADDRESS` | PostgreSQL database address | `127.0.0.1:5432` | No |
 | `POSTGRES_DATABASE` | Database name | `postgres` | No |

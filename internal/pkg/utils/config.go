@@ -45,7 +45,6 @@ type Config struct {
 	S3Endpoint        string `split_words:"true"`
 	S3AccessKeyID     string `split_words:"true"`
 	S3SecretAccessKey string `split_words:"true"`
-	S3BucketEndpoint  string `split_words:"true"`
 }
 
 // App - application configs
