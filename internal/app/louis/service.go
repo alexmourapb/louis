@@ -66,9 +66,9 @@ func (svc *LouisService) upload(transformationsList []storage.Transformation, im
 
 	wg.Add(allTransformationsCount)
 
-	var makeTransformation = func(localCtx context.Context, transformName string, transformer imageTransformer, trans *storage.Transformation) {
+	var makeTransformation = func(localCtx context.Context, transformName string, transformer imageTransformer, trans storage.Transformation) {
 		defer wg.Done()
-		var transformedImage, err = transformer(image, trans)
+		var transformedImage, err = transformer(image, &trans)
 		if err != nil {
 			errors <- err
 			return
@@ -89,7 +89,7 @@ func (svc *LouisService) upload(transformationsList []storage.Transformation, im
 
 		var transformer, exists = mappings[tr.Type]
 		if exists {
-			go makeTransformation(ctx, tr.Name, transformer, &tr)
+			go makeTransformation(ctx, tr.Name, transformer, tr)
 		} else {
 			log.Printf("WARN: unkown transform type %v", tr.Type)
 		}
@@ -149,17 +149,29 @@ func (svc *LouisService) Archive(imageKey string) error {
 	if err != nil {
 		return err
 	}
-	var filteredFiles = make([]storage.ObjectID, 0)
+	var objectsToDelete = make([]storage.ObjectID, 0)
+	var originalKey storage.ObjectID = nil
+	var realExists = false
 	for _, file := range files {
 		if strings.HasSuffix(*file.Key, RealTransformName+"."+ImageExtension) {
+			realExists = true
 			continue
 		}
-		filteredFiles = append(filteredFiles, file)
+		if strings.HasSuffix(*file.Key, OriginalTransformName+"."+ImageExtension) {
+			originalKey = file
+			continue
+		}
+		objectsToDelete = append(objectsToDelete, file)
+	}
+	if realExists && originalKey != nil {
+		objectsToDelete = append(objectsToDelete, originalKey)
 	}
 
-	err = svc.ctx.Storage.DeleteFiles(filteredFiles)
-	if err != nil {
-		return err
+	if len(objectsToDelete) > 0 {
+		err = svc.ctx.Storage.DeleteFiles(objectsToDelete)
+		if err != nil {
+			return err
+		}
 	}
 
 	return svc.ctx.DB.DeleteImage(imageKey)
@@ -202,6 +214,12 @@ func (svc *LouisService) Restore(imageKey string) error {
 	transformationsList = append(transformationsList, additionalTransformation)
 
 	_, err = svc.upload(transformationsList, baseImage, imageKey)
+
+	if err != nil {
+		return err
+	}
+
+	err = svc.ctx.DB.SetTransformsUploaded(image.ID)
 
 	if err != nil {
 		return err

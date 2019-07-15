@@ -179,7 +179,7 @@ func (db *DB) SetImageRestored(imageKey string) error {
 	img := &Image{}
 	err := db.Model(img).
 		Where("Key = ?", imageKey).
-		Updates(map[string]interface{}{"Deleted": false}).Error
+		Updates(map[string]interface{}{"Deleted": false, "With_Real_Copy": true}).Error
 	return err
 
 }
@@ -189,5 +189,13 @@ func (db *DB) SetImageURL(key string, userID int32, URL string) error {
 	err := db.Model(img).
 		Where("Key = ? AND User_ID = ?", key, userID).
 		Updates(map[string]interface{}{"Url": URL}).Error
+	return err
+}
+
+func (db *DB) SetImageTags(imageKey string, newTags []string) error {
+	var img = &Image{}
+	var err = db.Model(img).
+		Where("Key = ?", imageKey).
+		Updates(map[string]interface{}{"Tags": newTags}).Error
 	return err
 }
