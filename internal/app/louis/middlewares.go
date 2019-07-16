@@ -142,7 +142,10 @@ func validate() func(sessionHandler) sessionHandler {
 			}
 
 			var buffer bytes.Buffer
-			io.Copy(&buffer, file)
+			_, err = io.Copy(&buffer, file)
+			if failOnError(w, err, "failed to copy file to buffer", http.StatusInternalServerError) {
+				return
+			}
 			s.args.image = buffer.Bytes()
 
 			_, _, err = image.Decode(bytes.NewReader(s.args.image))

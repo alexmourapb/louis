@@ -150,7 +150,7 @@ func (svc *LouisService) Archive(imageKey string) error {
 		return err
 	}
 	var objectsToDelete = make([]storage.ObjectID, 0)
-	var originalKey storage.ObjectID = nil
+	var originalKey storage.ObjectID
 	var realExists = false
 	for _, file := range files {
 		if strings.HasSuffix(*file.Key, RealTransformName+"."+ImageExtension) {

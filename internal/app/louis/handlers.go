@@ -32,8 +32,6 @@ type session struct {
 
 type sessionHandler = func(*session, http.ResponseWriter, *http.Request)
 
-type handlerFunc = func(*session) (w http.ResponseWriter, req *http.Request)
-
 func withSession(ctx *AppContext) func(sessionHandler) http.HandlerFunc {
 
 	return func(handler sessionHandler) http.HandlerFunc {
@@ -222,5 +220,5 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	health := utils.GetHealthStats()
 	body, _ := json.Marshal(health)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	_, _ = w.Write(body)
 }

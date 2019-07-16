@@ -150,9 +150,11 @@ func (ctx *S3Context) DeleteFiles(obIdentifiers []ObjectID) error {
 
 		if r.Operation.Name == "DeleteObjects" {
 			buf := new(bytes.Buffer)
-			buf.ReadFrom(r.Body)
-			updated := bytes.Replace(buf.Bytes(), []byte(` xmlns="http://s3.amazonaws.com/doc/2006-03-01/"`), []byte(""), -1)
-			r.SetReaderBody(bytes.NewReader(updated))
+			var _, err = buf.ReadFrom(r.Body)
+			if err == nil {
+				updated := bytes.Replace(buf.Bytes(), []byte(` xmlns="http://s3.amazonaws.com/doc/2006-03-01/"`), []byte(""), -1)
+				r.SetReaderBody(bytes.NewReader(updated))
+			}
 		}
 	})
 

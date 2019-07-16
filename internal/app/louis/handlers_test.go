@@ -24,9 +24,6 @@ import (
 	"testing"
 )
 
-const (
-	redisConnection = "redis://127.0.0.1:6379"
-)
 
 var tlist = []storage.Transformation{
 	{
@@ -79,7 +76,7 @@ func (s *Suite) BeforeTest(tn, sn string) {
 	log.Printf("Executing setup for test")
 	if err := s.appCtx.DB.InitDB(); err != nil {
 		defer s.Fail("failed to init db - %v", err)
-		s.appCtx.DB.DropDB()
+		_ = s.appCtx.DB.DropDB()
 		s.appCtx.DropRedis()
 	}
 
@@ -87,7 +84,7 @@ func (s *Suite) BeforeTest(tn, sn string) {
 
 func (s *Suite) AfterTest(tn, sn string) {
 	log.Printf("Executing tear down test")
-	s.appCtx.DB.DropDB()
+	_ = s.appCtx.DB.DropDB()
 	s.appCtx.DB.Close()
 	s.appCtx.DropRedis()
 }
@@ -355,7 +352,8 @@ func ensureTransformations(t *testing.T, appCtx *AppContext, resp responseTempla
 	trans, err := appCtx.DB.GetTransformations(img.ID)
 	assert.NoError(t, err)
 
-	for _, tran := range trans {
+	for i, _ := range trans {
+		var tran = &trans[i]
 		// transformations.
 		tran.Name = ""
 		matched, err := regexp.Match(fmt.Sprintf("^http(s?)\\:\\/\\/.*%s.*%s\\.jpg", imageKey, tran.Name), []byte(transformations[tran.Name].(string)))
@@ -373,22 +371,6 @@ func ensureDatabaseStateAfterClaim(t *testing.T, appCtx *AppContext, imageKey st
 	assert.NoError(t, err)
 
 	assert.True(t, img.Approved)
-}
-
-func getAppContext() (*AppContext, error) {
-	var err error
-	appCtx := &AppContext{}
-	appCtx.Config = utils.InitConfigFrom("../../../.env")
-
-	if appCtx.DB, err = storage.Open(appCtx.Config); err != nil {
-		return nil, err
-	}
-
-	if err = appCtx.DB.InitDB(); err != nil {
-		return nil, err
-	}
-
-	return appCtx, nil
 }
 
 func newFileUploadRequest(uri string, params map[string]string, paramName, path string) (*http.Request, error) {

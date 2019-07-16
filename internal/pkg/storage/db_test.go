@@ -59,7 +59,7 @@ func (s *Suite) TearDownSuite() {
 }
 
 func (s *Suite) AfterTest(tn, sn string) {
-	s.db.DropDB()
+	_ = s.db.DropDB()
 }
 
 func getDB() (*DB, error) {

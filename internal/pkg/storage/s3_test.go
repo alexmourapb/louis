@@ -45,7 +45,7 @@ func (s *S3TestSuite) TestUploadFile() {
 		s.T().Fatalf("failed to upload image: %v", err)
 	}
 
-	s.ctx.DeleteFolder("test")
+	_ = s.ctx.DeleteFolder("test")
 }
 
 func (s *S3TestSuite) TestGetObjectNotExist() {
@@ -77,7 +77,7 @@ func (s *S3TestSuite) TestGetObject() {
 	s.NoError(err)
 	s.ElementsMatch(expectedBody, body, "content should be the same content")
 
-	s.ctx.DeleteFolder("test")
+	_ = s.ctx.DeleteFolder("test")
 
 }
 
@@ -86,7 +86,7 @@ func (s *S3TestSuite) TestDeleteFolder() {
 	file1 := "test/pict1.jpg"
 	file2 := "test/pict2.jpg"
 
-	godotenv.Load("../../../.env")
+	_ = godotenv.Load("../../../.env")
 
 	filename := "../../../test/data/picture.jpg"
 
@@ -108,7 +108,7 @@ func (s *S3TestSuite) TestDeleteFolder() {
 
 	s.Equal(0, len(objects))
 
-	s.ctx.DeleteFolder("test")
+	_ = s.ctx.DeleteFolder("test")
 
 }
 
@@ -118,7 +118,7 @@ func (s *S3TestSuite) TestCopyObject() {
 	var fileKey = "test/original.jpg"
 	var copyFileKey = "test/copy.jpg"
 
-	godotenv.Load("../../../.env")
+	_ = godotenv.Load("../../../.env")
 
 	f, ferr := os.Open(filename)
 	s.NoError(ferr, "should be able to open file")
@@ -131,5 +131,5 @@ func (s *S3TestSuite) TestCopyObject() {
 	err = s.ctx.CopyObject(fileKey, copyFileKey)
 	s.NoError(err, "should be copied successfully")
 
-	s.ctx.DeleteFolder("test")
+	_ = s.ctx.DeleteFolder("test")
 }
