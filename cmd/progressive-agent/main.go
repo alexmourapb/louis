@@ -7,6 +7,8 @@ import (
 	"github.com/KazanExpress/louis/internal/pkg/transformations"
 	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"log"
+	"os"
+	"strconv"
 	"sync"
 )
 
@@ -27,9 +29,17 @@ func main() {
 		log.Fatalf("kek %v - ", err)
 	}
 
-	// TODO: add linter for go in vscode
-	// TODO: configure federation grafana and prometheus
-	const batchSize = 10
+	var batchSize = 10
+
+	if len(os.Args) > 1 {
+		var batch, err = strconv.Atoi(os.Args[1])
+		if err != nil {
+			log.Printf("failed to parse batch size argument. ignoring it")
+		} else {
+			batchSize = batch
+		}
+	}
+
 	var cursor = 0
 	for {
 		var wg sync.WaitGroup
@@ -83,18 +93,11 @@ func main() {
 			}(img)
 		}
 
+		cursor += batchSize
+		wg.Wait()
 		if len(*res) < batchSize {
 			break
 		}
-		cursor += batchSize
-		wg.Wait()
 	}
 
-	// var res = new([]storage.Image)
-	// 	var err = appCtx.DB.Where("Progressive = false").Offset(cursor).Limit(batchSize).Find(res).Error
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-
-	// 	// appCtx.Storage.ListFiles()
 }
