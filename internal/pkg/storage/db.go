@@ -175,6 +175,14 @@ func (db *DB) DeleteImage(imageKey string) error {
 
 }
 
+func (db *DB) Update(imageKey string, values map[string]interface{}) error {
+	img := &Image{}
+	err := db.Model(img).
+		Where("Key = ?", imageKey).
+		Updates(values).Error
+	return err
+}
+
 func (db *DB) SetImageRestored(imageKey string) error {
 	img := &Image{}
 	err := db.Model(img).

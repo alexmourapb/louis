@@ -68,6 +68,14 @@ func Compress(buffer ImageBuffer, quality int) (ImageBuffer, error) {
 	})
 }
 
+func MakeProgressive(image ImageBuffer) (ImageBuffer, error) {
+	return bimg.NewImage(image).Process(bimg.Options{
+		NoAutoRotate:  false,
+		Interlace:     true,
+		StripMetadata: true,
+	})
+}
+
 // ImageTransformer - is shortcut type
 type ImageTransformer = func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error)
 
