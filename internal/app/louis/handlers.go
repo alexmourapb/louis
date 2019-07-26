@@ -36,10 +36,11 @@ func withSession(ctx *AppContext) func(sessionHandler) http.HandlerFunc {
 
 	return func(handler sessionHandler) http.HandlerFunc {
 
-		var s = &session{
-			ctx: ctx,
-		}
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			var s = &session{
+				ctx: ctx,
+			}
+
 			handler(s, w, req)
 		})
 	}
