@@ -69,3 +69,15 @@ Multipart body:
 ```
 
 Response the same as in `/upload`
+
+#### Restore image
+
+If image was not claimed and deleted or it's transforms were performed partially you can use this method to restore image and it's transforms.
+
+```
+POST /restore/<imageKey>
+HEADERS:
+    Authorization: LOUIS_SECRET_KEY
+```
+
+Response code is 200 if image was successfully restored, otherwise there is nonempty `error` field in response body.
