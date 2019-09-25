@@ -9,6 +9,7 @@ steps:
   settings:
     repo: kexpress/louis
     dockerfile: build/drone.dockerfile
+    purge: false
     tags:
       - latest
       - ${DRONE_TAG}
