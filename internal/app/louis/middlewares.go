@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -153,9 +154,30 @@ func validate() func(sessionHandler) sessionHandler {
 				return
 			}
 
-			keyArg := r.FormValue("key")
+			var keyArg = r.FormValue("key")
 			if keyArg != "" {
 				s.args.imageKey = keyArg
+			}
+
+			var cropPoints = r.FormValue("cropPoints")
+			if cropPoints != "" {
+				var values = strings.Split(strings.Trim(cropPoints, " "), ",")
+				if len(values) != 4 {
+					failOnError(w, fmt.Errorf("invalid cropPoints"), "there should be 4 values seprated with comma", http.StatusBadRequest)
+					return
+				}
+				var iValues = make([]int, 4)
+				for j, val := range values {
+					iVal, err := strconv.ParseInt(strings.Trim(val, " "), 10, 32)
+					if failOnError(w, err, "failed to parse int in cropPoints", http.StatusBadRequest) {
+						return
+					}
+					iValues[j] = int(iVal)
+				}
+				s.args.cropSquare = &utils.Square{
+					TopLeftPoint:     utils.Point{X: iValues[0], Y: iValues[1]},
+					BottomRightPoint: utils.Point{X: iValues[2], Y: iValues[3]},
+				}
 			}
 
 			next(s, w, r)

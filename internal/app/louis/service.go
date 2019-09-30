@@ -32,7 +32,7 @@ type ImageService interface {
 type UploadArgs struct {
 	ImageKey string
 	ImageID  int64
-	Image    ImageBuffer
+	Params   transformations.TransformParams
 }
 
 type UploadResults struct {
@@ -52,9 +52,9 @@ func NewLouisService(ctx *AppContext) *LouisService {
 
 type ImageBuffer = []byte
 
-type imageTransformer = func(image ImageBuffer, trans *storage.Transformation) (ImageBuffer, error)
+type imageTransformer = func(args transformations.TransformParams, trans *storage.Transformation) (ImageBuffer, error)
 
-func (svc *LouisService) upload(transformationsList []storage.Transformation, image ImageBuffer, imageKey string) (map[string]string, error) {
+func (svc *LouisService) upload(transformationsList []storage.Transformation, args transformations.TransformParams, imageKey string) (map[string]string, error) {
 
 	var wg sync.WaitGroup
 	var allTransformationsCount = len(transformationsList)
@@ -68,7 +68,7 @@ func (svc *LouisService) upload(transformationsList []storage.Transformation, im
 
 	var makeTransformation = func(localCtx context.Context, transformName string, transformer imageTransformer, trans storage.Transformation) {
 		defer wg.Done()
-		var transformedImage, err = transformer(image, &trans)
+		var transformedImage, err = transformer(args, &trans)
 		if err != nil {
 			errors <- err
 			return
@@ -132,7 +132,7 @@ func (svc *LouisService) Upload(args *UploadArgs) (map[string]string, error) {
 		originalTransformation,
 	)
 
-	transformUrls, err := svc.upload(newTransformationsList, args.Image, args.ImageKey)
+	transformUrls, err := svc.upload(newTransformationsList, args.Params, args.ImageKey)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (svc *LouisService) Restore(imageKey string) error {
 
 	transformationsList = append(transformationsList, additionalTransformation)
 
-	_, err = svc.upload(transformationsList, baseImage, imageKey)
+	_, err = svc.upload(transformationsList, transformations.TransformParams{Image: baseImage}, imageKey)
 
 	if err != nil {
 		return err

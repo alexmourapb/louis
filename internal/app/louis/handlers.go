@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/KazanExpress/louis/internal/pkg/transformations"
 	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
@@ -19,9 +20,10 @@ var (
 )
 
 type requestArgs struct {
-	image    ImageBuffer
-	tags     []string
-	imageKey string
+	image      ImageBuffer
+	tags       []string
+	imageKey   string
+	cropSquare *utils.Square
 }
 
 type session struct {
@@ -135,7 +137,10 @@ func handleUploadWithClaim(s *session, w http.ResponseWriter, r *http.Request) {
 	transformsURLs, err := s.ctx.ImageService.Upload(&UploadArgs{
 		ImageID:  imgID,
 		ImageKey: s.args.imageKey,
-		Image:    s.args.image,
+		Params: transformations.TransformParams{
+			Image:      s.args.image,
+			CropSquare: s.args.cropSquare,
+		},
 	})
 
 	if failOnError(w, err, "failed to upload transforms", http.StatusInternalServerError) {
@@ -164,7 +169,10 @@ func handleUpload(s *session, w http.ResponseWriter, r *http.Request) {
 	transformsURLs, err := s.ctx.ImageService.Upload(&UploadArgs{
 		ImageID:  imgID,
 		ImageKey: s.args.imageKey,
-		Image:    s.args.image,
+		Params: transformations.TransformParams{
+			Image:      s.args.image,
+			CropSquare: s.args.cropSquare,
+		},
 	})
 
 	if failOnError(w, err, "failed to upload transforms", http.StatusInternalServerError) {

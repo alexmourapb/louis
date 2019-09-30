@@ -71,6 +71,12 @@
             "width":540,
             "height":540,
             "quality": 20
+        },
+        {
+            "name": "square_crop",
+            "tag": "square_crop",
+            "type": "crop",
+            "quality": 100
         }
     ]
 }
