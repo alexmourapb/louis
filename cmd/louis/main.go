@@ -122,6 +122,7 @@ func main() {
 		}
 	})
 
+	// TODO: make proper shutdown of web server
 	go func() {
 		log.Fatal(http.ListenAndServe(":8001", server.MetricsRouter()))
 	}()
