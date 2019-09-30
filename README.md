@@ -36,6 +36,8 @@ Each element in `transformations` of `ensure-transforms.json` describes transfor
 
 - `quality` - compression parameter for transformations.
 
+- `cropPoints` - top left and bottom right points of area to extract. Can be used only with transformation of type `crop`.
+
 For now list is very short, but it will be extended in future:
 
 ### Fit
@@ -46,6 +48,10 @@ The original aspect ratio is retained and all of the original image is visible.
 ### Fill
 
 Fills image to given width & height.
+
+### Crop
+
+Extracts area from original image by given in request X/Y of top left and bottom right points.
 
 ## Running with docker
 

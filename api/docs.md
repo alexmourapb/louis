@@ -12,6 +12,7 @@ Multipart body:
     file: image
     tags: tag1, tag2, tag3
     key: "name of image[optional/usefull on migration]"
+    cropPoints: x,y,x2,y2[optional, can be used with crop transformation]
 ```
 
 Response:
