@@ -4,11 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"golang.org/x/sync/semaphore"
 	"image"
 	"io"
 	"log"
@@ -16,6 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
+	"golang.org/x/sync/semaphore"
+
+	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 // NewThrottler - contsructor for Throttler

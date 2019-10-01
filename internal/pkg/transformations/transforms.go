@@ -2,9 +2,11 @@ package transformations
 
 import (
 	"fmt"
+
+	"gopkg.in/h2non/bimg.v1"
+
 	"github.com/KazanExpress/louis/internal/pkg/storage"
 	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"gopkg.in/h2non/bimg.v1"
 )
 
 type ImageBuffer = []byte

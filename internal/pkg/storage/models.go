@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"github.com/lib/pq"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // Image - is model of how image stored in DB

@@ -1,11 +1,12 @@
 package utils
 
 import (
+	"log"
+	"time"
+
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/namsral/flag"
-	"log"
-	"time"
 )
 
 // Config - application configs

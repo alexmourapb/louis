@@ -4,26 +4,26 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"regexp"
-	// "github.com/KazanExpress/louis/internal/pkg/queue"
-	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/onsi/gomega"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"log"
 	"mime/multipart"
-	"strings"
-
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
-)
 
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+
+	// "github.com/KazanExpress/louis/internal/pkg/queue"
+	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
+)
 
 var tlist = []storage.Transformation{
 	{

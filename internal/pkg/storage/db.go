@@ -3,14 +3,16 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"github.com/jinzhu/gorm"
-	"strings"
-	// gorm dialects need to be included in that way
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"log"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/jinzhu/gorm"
+	// gorm dialects need to be included in that way
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 const (

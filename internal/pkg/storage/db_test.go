@@ -2,14 +2,15 @@ package storage
 
 import (
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
+	"log"
+	"testing"
+
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"log"
-	"testing"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 var pathToTestDB = "../../../test/data/test.db"

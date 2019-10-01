@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
+	"io"
+	"io/ioutil"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -12,8 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"io"
-	"io/ioutil"
+
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 // ObjectID - is a shortcut for s3.ObjectIdentifier

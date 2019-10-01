@@ -1,13 +1,14 @@
 package louis
 
 import (
-	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"github.com/gocraft/work"
-	"github.com/gomodule/redigo/redis"
 	"log"
 
-	"github.com/KazanExpress/louis/internal/pkg/storage"
 	redis2 "github.com/go-redis/redis"
+	"github.com/gocraft/work"
+	"github.com/gomodule/redigo/redis"
+
+	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 const (

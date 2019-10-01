@@ -2,11 +2,12 @@ package transformations
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/h2non/bimg.v1"
 	"io/ioutil"
 	"path"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/bimg.v1"
 )
 
 func testFit(pictureBytes []byte) func(*testing.T) {
