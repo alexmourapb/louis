@@ -1,12 +1,15 @@
 package louis
 
 import (
+	"context"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 )
 
 type Server struct {
+	AppServer     *http.Server
+	MetricsServer *http.Server
 	ctx           *AppContext
 	appRouter     *mux.Router
 	metricsRouter *mux.Router
@@ -28,6 +31,14 @@ func NewServer(ctx *AppContext) *Server {
 	}
 	s.initRoutes()
 	return s
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	var err = s.AppServer.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+	return s.MetricsServer.Shutdown(ctx)
 }
 
 func (s *Server) initRoutes() {
@@ -70,4 +81,15 @@ func (s *Server) initRoutes() {
 
 	s.metricsRouter.Handle("/metrics", promhttp.Handler())
 	s.metricsRouter.HandleFunc("/free", handleFree).Methods("POST")
+
+	s.AppServer = &http.Server{
+		Addr:    ":8000", // TODO: get from config
+		Handler: s.AppRouter(),
+	}
+
+	s.MetricsServer = &http.Server{
+		Addr:    ":8001", // TODO: get from config
+		Handler: s.MetricsRouter(),
+	}
+
 }
