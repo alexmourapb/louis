@@ -77,6 +77,91 @@
             "tag": "square_crop",
             "type": "crop",
             "quality": 100
+        },
+
+        {
+            "name": "product_3x4_240_high",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 100,
+            "width": 240,
+            "height": 320
+        },
+        {
+            "name": "product_3x4_240_low",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 20,
+            "width": 240,
+            "height": 320
+        },
+
+        {
+            "name": "product_3x4_60_high",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 100,
+            "width": 60,
+            "height": 80
+        },
+        {
+            "name": "product_3x4_60_low",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 20,
+            "width": 60,
+            "height": 80
+        },
+
+        {
+            "name": "product_3x4_120_high",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 100,
+            "width": 120,
+            "height": 160
+        },
+        {
+            "name": "product_3x4_120_low",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 20,
+            "width": 120,
+            "height": 160
+        },
+
+        {
+            "name": "product_3x4_480_high",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 100,
+            "width": 480,
+            "height": 640
+        },
+        {
+            "name": "product_3x4_480_low",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 20,
+            "width": 480,
+            "height": 640
+        },
+
+        {
+            "name": "product_3x4_720_high",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 100,
+            "width": 720,
+            "height": 960
+        },
+        {
+            "name": "product_3x4_720_low",
+            "tag": "product_3x4",
+            "type": "fit",
+            "quality": 20,
+            "width": 720,
+            "height": 960
         }
     ]
 }

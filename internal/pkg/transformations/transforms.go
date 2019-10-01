@@ -57,6 +57,7 @@ func Fill(buffer ImageBuffer, width, height, quality int) (ImageBuffer, error) {
 		NoAutoRotate:  false,
 		StripMetadata: true,
 		Interlace:     true, // adds progressive jpeg support
+		Quality:       quality,
 	})
 }
 
@@ -72,6 +73,13 @@ func Crop(buffer ImageBuffer, x, y, width, height, quality int) (ImageBuffer, er
 		return nil, err
 	}
 
+	img = bimg.NewImage(tmpImg)
+	tmpImg, err = img.Process(bimg.Options{
+		Quality: quality,
+	})
+	if err != nil {
+		return nil, err
+	}
 	img = bimg.NewImage(tmpImg)
 	return img.Extract(y, x, width, height)
 }
