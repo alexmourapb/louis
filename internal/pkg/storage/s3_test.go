@@ -1,12 +1,14 @@
 package storage
 
 import (
-	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"github.com/joho/godotenv"
-	"github.com/stretchr/testify/suite"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 type S3TestSuite struct {

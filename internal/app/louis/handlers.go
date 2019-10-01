@@ -4,15 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/transformations"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"github.com/gorilla/mux"
-	"github.com/lib/pq"
-	"github.com/rs/xid"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"runtime/debug"
+
+	"github.com/gorilla/mux"
+	"github.com/lib/pq"
+	"github.com/rs/xid"
+
+	"github.com/KazanExpress/louis/internal/pkg/transformations"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 var (

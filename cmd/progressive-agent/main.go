@@ -2,14 +2,15 @@ package main
 
 import (
 	"bytes"
-	"github.com/KazanExpress/louis/internal/app/louis"
-	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/KazanExpress/louis/internal/pkg/transformations"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"log"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/KazanExpress/louis/internal/app/louis"
+	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/transformations"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 func main() {

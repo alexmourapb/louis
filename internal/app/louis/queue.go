@@ -1,12 +1,12 @@
 package louis
 
 import (
+	"log"
+
 	// "github.com/KazanExpress/louis/internal/pkg/utils"
 	"github.com/gocraft/work"
 	"github.com/gomodule/redigo/redis"
 	_ "github.com/mattn/go-sqlite3"
-
-	"log"
 )
 
 const (

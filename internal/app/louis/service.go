@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/KazanExpress/louis/internal/pkg/transformations"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
 	"log"
 	"strings"
 	"sync"
+
+	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/transformations"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 var (

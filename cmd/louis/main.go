@@ -3,19 +3,21 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/KazanExpress/louis/internal/app/louis"
-	"github.com/KazanExpress/louis/internal/pkg/storage"
-	"github.com/KazanExpress/louis/internal/pkg/utils"
+	"io/ioutil"
+	"log"
+	"os"
+	"runtime/debug"
+	"time"
+
+	// _ "net/http/pprof"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
-	"io/ioutil"
-	"log"
-	"runtime/debug"
-	// _ "net/http/pprof"
 	"gopkg.in/h2non/bimg.v1"
-	"os"
-	"time"
+
+	"github.com/KazanExpress/louis/internal/app/louis"
+	"github.com/KazanExpress/louis/internal/pkg/storage"
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 var (

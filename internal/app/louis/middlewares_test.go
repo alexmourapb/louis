@@ -1,10 +1,12 @@
 package louis
 
 import (
-	"github.com/KazanExpress/louis/internal/pkg/utils"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/KazanExpress/louis/internal/pkg/utils"
 )
 
 func TestThrottlerLock(t *testing.T) {
