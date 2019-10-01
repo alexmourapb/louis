@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/KazanExpress/louis/internal/app/louis"
 	"github.com/KazanExpress/louis/internal/pkg/storage"
@@ -10,7 +11,6 @@ import (
 	"github.com/prometheus/procfs"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"runtime/debug"
 	// _ "net/http/pprof"
 	"gopkg.in/h2non/bimg.v1"
@@ -114,6 +114,7 @@ func main() {
 		case <-func() chan bool {
 			ch := make(chan bool, 1)
 			ch <- true
+			server.Shutdown(context.Background())
 			appCtx.Pool.Drain()
 			return ch
 		}():
@@ -122,15 +123,18 @@ func main() {
 		}
 	})
 
-	// TODO: make proper shutdown of web server
 	go func() {
-		log.Fatal(http.ListenAndServe(":8001", server.MetricsRouter()))
+		if err := server.MetricsServer.ListenAndServe(); err != nil {
+			log.Fatal(err)
+		}
 	}()
 
+	// for pprof
 	// go func() {
-	// 	// for pprof
 	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
 	// }()
 	log.Printf("INFO: app started!")
-	log.Fatal(http.ListenAndServe(":8000", server.AppRouter()))
+	if err := server.AppServer.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
 }
